@@ -37,6 +37,11 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      # npm ci 가 아니라 npm install 을 쓴다: lockfile 이 Windows 에서 생성되는데,
+      # npm 은 그 환경에서 wasm32-wasi optional 패키지(@tailwindcss/oxide, rolldown)의
+      # 하위 의존성(@emnapi/*)을 resolved/integrity 없이 자리표시자로만 기록한다.
+      # 그러면 리눅스 npm ci 가 "Missing: @emnapi/core from lock file" 로 거부한다.
+      # 트레이드오프: CI 는 pinned 트리가 아니라 range 재해석 결과를 검증한다.
+      - run: npm install --no-audit --no-fund
       - run: npm run lint
       - run: npm run build
