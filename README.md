@@ -39,7 +39,7 @@ flowchart LR
     RAG --> AGENT["SQL 에이전트"]
     AGENT <--> TOOLS["스키마 검색<br/>대상 확정<br/>시험 실행"]
     AGENT --> GUARD["읽기 전용 검증"]
-    GUARD --> DB[("SQLite / Oracle")]
+    GUARD --> DB[("SQLite")]
     DB --> ROWS["결과 → 화면 직접 주입"]
     DB --> UI["화면 구성 결정"]
     SKEL -.같은 화면 갱신.-> UI
@@ -57,7 +57,7 @@ SQL 생성은 한 번에 끝내는 방식이 아니라 도구를 쓰는 에이�
 | Python | 3.11 이상 (CI 검증 버전 3.11) |
 | Node.js | 22 이상 |
 | Anthropic API 키 | 필수 — 질의마다 크레딧이 소비됩니다 |
-| 데이터베이스 | 기본은 SQLite mock (자동 생성). Oracle은 `MOCK_DB=false` + `ORACLE_*` 설정 |
+| 데이터베이스 | 별도 설치 없음 — 도메인 팩이 SQLite mock DB를 자동 생성 |
 | 디스크 | 임베딩 모델(`BAAI/bge-m3`) 가중치로 2GB 이상 여유 필요 |
 
 ## 시작하기
@@ -78,7 +78,7 @@ npm run dev                   # http://localhost:5173
 ```
 
 > **첫 기동은 몇 분 걸립니다.** mock 데이터 생성, 임베딩 모델 다운로드(2GB 이상), 벡터 학습이 순차로 자동 실행됩니다. 두 번째 기동부터는 즉시 올라옵니다.
-> 환경변수는 셸에 주입하지 말고 `backend/.env` 에 넣으세요. 백엔드 기본 포트는 8000이 아니라 **8008** 입니다.
+> 환경변수는 셸에 주입하지 말고 `backend/.env` 에 넣으세요. 백엔드 포트는 uvicorn 기본값 8000이 아니라 **8008** 입니다 (`API_PORT`).
 
 준비가 끝났는지 확인합니다:
 
@@ -87,7 +87,7 @@ curl http://localhost:8008/api/health
 ```
 
 ```json
-{"status": "ok", "db_connected": true, "mock_mode": true, "vector_store_count": <학습된 문서 수>}
+{"status": "ok", "db_connected": true, "vector_store_count": <학습된 문서 수>}
 ```
 
 `vector_store_count` 가 0이면 벡터 학습이 아직 안 된 상태입니다. 브라우저에서 http://localhost:5173 을 열면 도메인 라벨과 추천 질문이 있는 입력 화면이 나옵니다. 관리자 콘솔은 http://localhost:5173/admin 입니다.
@@ -129,7 +129,6 @@ cd backend && python eval/run_eval.py       # 골든셋 평가 — API 키 필�
 | 변수 | 기본값 | 역할 |
 |---|---|---|
 | `DOMAIN` | `commerce` | 활성 도메인 팩 |
-| `MOCK_DB` | `true` | `false` 면 Oracle 연결 (`ORACLE_USER`/`ORACLE_PASSWORD`/`ORACLE_DSN` 필요) |
 | `MODEL_SQL_GEN` | `claude-sonnet-5` | SQL 생성 모델 |
 | `MODEL_UI_DECISION` | `claude-sonnet-5` | 화면 구성 결정 모델 |
 | `MODEL_CLASSIFY`, `MODEL_FIX` | `claude-haiku-4-5` | 질문 분류, SQL 오류 수정 |
@@ -208,4 +207,4 @@ frontend/
 
 - 인증과 권한 관리가 없습니다. 데모 목적의 프로젝트입니다.
 - 파이프라인이 동기 방식이라 다중 사용자 환경에는 적합하지 않습니다.
-- Oracle 연결 경로와 DDL 파서는 준비되어 있지만 실제 운영 DB로 검증하지는 않았습니다.
+- 조회 대상은 도메인 팩이 생성하는 SQLite mock DB입니다. SQL 문법은 `config.SQL_DIALECT` 한 곳을 따르고 DB 접근은 `execute`/`test_connection`/`close` 세 메서드 인터페이스(`db/client.py`) 뒤에 있으므로 다른 백엔드를 붙일 자리는 남아 있지만, 실제 운영 DB로 검증한 적은 없습니다.

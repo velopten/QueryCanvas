@@ -23,7 +23,7 @@ class ResolveResult:
     errors: list[str] = field(default_factory=list)
 
 
-def resolve(sql: str, dialect: str = "oracle") -> ResolveResult:
+def resolve(sql: str, dialect: str = "sqlite") -> ResolveResult:
     """
     sql 안의 가상 view 참조를 base SQL subquery 로 치환.
     매칭되는 가상 view 가 없으면 원본 그대로 반환.

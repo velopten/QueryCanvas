@@ -30,34 +30,29 @@ def no_virtual_views(monkeypatch):
 
 class TestPreviewSqlTool:
     def test_blocks_dml(self):
-        out = agent._tool_preview_sql(FakeDb(), "DELETE FROM TB_EMP", "oracle")
+        out = agent._tool_preview_sql(FakeDb(), "DELETE FROM TB_EMP")
         assert "거부" in out
 
     def test_success_returns_masked_sample(self):
         db = FakeDb(rows=[{"EMP_NAME": "김철수", "CNT": 3}])
-        out = agent._tool_preview_sql(db, "SELECT EMP_NAME, CNT FROM T", "sqlite")
+        out = agent._tool_preview_sql(db, "SELECT EMP_NAME, CNT FROM T")
         assert "실행 성공" in out
         assert "김철수" not in out          # PII 마스킹 확인
         assert "[PERSON_1]" in out
 
-    def test_row_limit_wrapped_sqlite(self):
+    def test_row_limit_wrapped(self):
         db = FakeDb(rows=[])
-        agent._tool_preview_sql(db, "SELECT * FROM T", "sqlite")
+        agent._tool_preview_sql(db, "SELECT * FROM T")
         assert "LIMIT 5" in db.executed[0]
-
-    def test_row_limit_wrapped_oracle(self):
-        db = FakeDb(rows=[])
-        agent._tool_preview_sql(db, "SELECT 1 FROM DUAL", "oracle")
-        assert "ROWNUM <= 5" in db.executed[0]
 
     def test_execution_error_reported(self):
         db = FakeDb(error="no such table: X")
-        out = agent._tool_preview_sql(db, "SELECT * FROM X", "sqlite")
+        out = agent._tool_preview_sql(db, "SELECT * FROM X")
         assert "실행 오류" in out
         assert "no such table" in out
 
     def test_invalid_sql_reports_validation_failure(self):
-        out = agent._tool_preview_sql(FakeDb(), "SELECT FROM WHERE", "oracle")
+        out = agent._tool_preview_sql(FakeDb(), "SELECT FROM WHERE")
         assert "실패" in out
 
 

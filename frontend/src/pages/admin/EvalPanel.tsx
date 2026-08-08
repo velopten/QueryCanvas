@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  getSettings, listEvalResults, getEvalResult, runEvalStream,
+  listEvalResults, getEvalResult, runEvalStream,
   type EvalResultMeta, type EvalResultDetail, type EvalCaseResult,
 } from '../../utils/api'
 import { Button, Panel, Badge, EmptyState } from '../../components/ui'
@@ -57,14 +57,12 @@ export default function EvalPanel() {
   const [detail, setDetail] = useState<{ file: string; data: EvalResultDetail } | null>(null)
   const [compare, setCompare] = useState<string[]>([])
   const [detailsCache, setDetailsCache] = useState<Record<string, EvalResultDetail>>({})
-  const [mockMode, setMockMode] = useState<boolean | null>(null)
   const [running, setRunning] = useState(false)
   const [runLog, setRunLog] = useState<string[]>([])
   const abortRef = useRef<(() => void) | null>(null)
 
   const fetchData = () => {
     listEvalResults().then(d => setResults(d.items)).catch(() => {})
-    getSettings().then(s => setMockMode(!!s.mock_mode)).catch(() => setMockMode(null))
   }
   useEffect(fetchData, [])
   useEffect(() => () => abortRef.current?.(), [])
@@ -123,17 +121,12 @@ export default function EvalPanel() {
         title="골든셋 평가 실행"
         description="현재 서버 설정(모델/effort/에이전틱)으로 골든 질문셋을 실행하고 정확도/지연/비용을 기록합니다. 프롬프트·모델·검색 가중치 변경 전후로 실행해서 회귀를 확인하세요."
         actions={
-          <Button size="md" onClick={handleRun} busy={running} disabled={mockMode === false}>
+          <Button size="md" onClick={handleRun} busy={running}>
             {running ? '실행 중...' : '평가 실행'}
           </Button>
         }
       >
         <div className="space-y-3">
-          {mockMode === false && (
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              평가는 Mock DB 모드에서만 실행할 수 있습니다. backend/.env 의 MOCK_DB=true 로 서버를 재시작하세요.
-            </p>
-          )}
           {runLog.length > 0 && (
             <div className="bg-gray-900 rounded-lg p-3 max-h-64 overflow-y-auto">
               {runLog.map((line, i) => (

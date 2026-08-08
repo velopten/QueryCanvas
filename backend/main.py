@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from config import API_HOST, API_PORT, MOCK_DB
+from config import API_HOST, API_PORT, SQL_DIALECT
 from db.trace_store import trace_store
 from logger import QueryTracer
 
@@ -19,7 +19,7 @@ def sse_event(event: str, data: dict) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from db.oracle_client import get_db
+    from db.client import get_db
     from text_to_sql.vector_store import vector_store
 
     app.state.db = get_db()
@@ -105,7 +105,6 @@ async def health():
     return {
         "status": "ok",
         "db_connected": db_ok,
-        "mock_mode": MOCK_DB,
         "vector_store_count": vector_store.count(),
     }
 
@@ -373,10 +372,9 @@ async def query_stream(req: QueryRequest):
 
         # Step 2.5: SQL 안전성 검증 (sqlglot AST — DML/DDL 차단, LLM 없음)
         from text_to_sql.sql_validator import validate_sql
-        dialect = "sqlite" if MOCK_DB else "oracle"
 
         yield sse_event("step", {"phase": "sql_validate", "status": "running", "message": "SQL 안전성을 검증하고 있습니다..."})
-        vres = validate_sql(sql, dialect=dialect)
+        vres = validate_sql(sql, dialect=SQL_DIALECT)
         tracer.log_step("sql_validated", {
             "ok": vres.ok,
             "tables": vres.tables,
@@ -391,7 +389,7 @@ async def query_stream(req: QueryRequest):
 
         # Step 2.55: 가상 view 해석 (FROM VV_XXX → (base SQL) alias)
         from text_to_sql.virtual_view_resolver import resolve as vv_resolve
-        vres2 = vv_resolve(sql, dialect=dialect)
+        vres2 = vv_resolve(sql, dialect=SQL_DIALECT)
         if vres2.errors:
             yield sse_event("step", {"phase": "vv_resolve", "status": "error", "message": "; ".join(vres2.errors)})
             yield sse_event("error", {"message": "; ".join(vres2.errors)})
@@ -800,7 +798,7 @@ async def open_saved_view(view_id: str):
         raise HTTPException(status_code=404, detail="저장된 뷰를 찾을 수 없습니다")
 
     final_sql = view["sql"]
-    vres = vv_resolve(final_sql, dialect="sqlite" if MOCK_DB else "oracle")
+    vres = vv_resolve(final_sql, dialect=SQL_DIALECT)
     if vres.resolved:
         final_sql = vres.sql
 
@@ -1027,7 +1025,6 @@ async def get_settings():
     from text_to_sql.sql_cache import sql_cache
     from text_to_sql.vector_store import vector_store
     return {
-        "mock_mode": MOCK_DB,
         "db_connected": app.state.db.test_connection(),
         "vector_store_count": vector_store.count(),
         "sql_cache_count": sql_cache.count(),
@@ -1219,8 +1216,6 @@ async def eval_get_result(filename: str):
 @app.post("/api/admin/eval/run/stream")
 async def eval_run_stream(req: EvalRunRequest):
     """평가를 SSE로 실행 — 케이스별 진행 상황을 실시간 전송."""
-    if not MOCK_DB:
-        raise HTTPException(status_code=400, detail="평가는 Mock DB 모드에서만 실행 가능합니다 (MOCK_DB=true)")
 
     def generate():
         from datetime import datetime

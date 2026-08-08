@@ -8,7 +8,7 @@ import re
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY, MOCK_DB, get_llm
+from config import ANTHROPIC_API_KEY, get_llm
 from logger import QueryTracer, pipeline_logger
 
 
@@ -32,17 +32,17 @@ FIX_OUTPUT_SCHEMA = {
     "additionalProperties": False,
 }
 
-FIX_SYSTEM_PROMPT = f"""당신은 SQL 디버거입니다. 실행 실패한 SQL과 에러 메시지를 보고 SQL을 수정합니다.
+FIX_SYSTEM_PROMPT = """당신은 SQL 디버거입니다. 실행 실패한 SQL과 에러 메시지를 보고 SQL을 수정합니다.
 
-현재 DB 환경: {"SQLite (Mock 모드)" if MOCK_DB else "Oracle"}
+현재 DB 환경: SQLite
 
 규칙:
 - 수정된 SQL만 반환 (설명 없이, 코드 블록 없이, 순수 SQL만)
 - SELECT만 허용
 - 원래 의도를 유지하면서 문법 오류만 수정
-{"- SQLite 문법 기준으로 수정 (EXTRACT 대신 strftime, SYSDATE 대신 date('now'), TO_CHAR 대신 strftime 사용)" if MOCK_DB else "- Oracle SQL 문법 기준으로 수정"}
-{"- SQLite에서는 EXTRACT(HOUR FROM ...) 사용 불가. CAST(strftime('%H', col) AS INTEGER) 사용" if MOCK_DB else ""}
-{"- SQLite에서는 타임스탬프 빼기 연산 불가. strftime으로 시간 차이 계산" if MOCK_DB else ""}
+- SQLite 문법 기준으로 수정 (EXTRACT 대신 strftime, SYSDATE 대신 date('now'), TO_CHAR 대신 strftime 사용)
+- SQLite에서는 EXTRACT(HOUR FROM ...) 사용 불가. CAST(strftime('%H', col) AS INTEGER) 사용
+- SQLite에서는 타임스탬프 빼기 연산 불가. strftime으로 시간 차이 계산
 """
 
 

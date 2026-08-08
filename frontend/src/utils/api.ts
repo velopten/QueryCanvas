@@ -367,7 +367,6 @@ export interface LlmSettings {
 }
 
 export interface AdminSettings {
-  mock_mode: boolean
   db_connected: boolean
   vector_store_count: number
   sql_cache_count: number

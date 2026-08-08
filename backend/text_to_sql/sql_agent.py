@@ -25,7 +25,7 @@ from typing import Any
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY, MOCK_DB, get_llm
+from config import ANTHROPIC_API_KEY, SQL_DIALECT, get_llm
 from logger import QueryTracer, pipeline_logger
 import ui_engine.prompts.loader as prompts_module
 from text_to_sql.sql_generator import (
@@ -159,7 +159,7 @@ def _tool_find_entity(db: Any, kind: str, name: str) -> str:
     return json.dumps({"candidates": rows, "count": len(groups[0].candidates)}, ensure_ascii=False, default=str)
 
 
-def _tool_preview_sql(db: Any, sql: str, dialect: str) -> str:
+def _tool_preview_sql(db: Any, sql: str) -> str:
     from text_to_sql.sql_validator import validate_sql
     from text_to_sql.virtual_view_resolver import resolve as vv_resolve
     from ui_engine.anonymizer import anonymize_with_mapping
@@ -167,22 +167,19 @@ def _tool_preview_sql(db: Any, sql: str, dialect: str) -> str:
     if BLOCKED_KEYWORDS.search(sql):
         return "거부: SELECT만 허용됩니다. DML/DDL 키워드가 감지되었습니다."
 
-    vres = validate_sql(sql, dialect=dialect)
+    vres = validate_sql(sql, dialect=SQL_DIALECT)
     if not vres.ok:
         return f"안전성 검증 실패: {'; '.join(vres.errors)}"
     resolved_sql = sql
 
-    vres2 = vv_resolve(resolved_sql, dialect=dialect)
+    vres2 = vv_resolve(resolved_sql, dialect=SQL_DIALECT)
     if vres2.errors:
         return f"가상 view 해석 실패: {'; '.join(vres2.errors)}"
     if vres2.resolved:
         resolved_sql = vres2.sql
 
     exec_sql = resolved_sql.rstrip().rstrip(";")
-    if dialect == "sqlite":
-        wrapped = f"SELECT * FROM ({exec_sql}) LIMIT {PREVIEW_ROWS}"
-    else:
-        wrapped = f"SELECT * FROM ({exec_sql}) WHERE ROWNUM <= {PREVIEW_ROWS}"
+    wrapped = f"SELECT * FROM ({exec_sql}) LIMIT {PREVIEW_ROWS}"
 
     try:
         rows = db.execute(wrapped)
@@ -247,8 +244,6 @@ def generate_sql_agentic(
       {"type": "done", "sql": str}            — 최종 SQL
       {"type": "error", "message": str}       — 실패
     """
-    dialect = "sqlite" if MOCK_DB else "oracle"
-
     # 초기 컨텍스트 조합 (generate_sql 과 동일 형식)
     parts = []
     if previous_sql:
@@ -345,7 +340,7 @@ def generate_sql_agentic(
                     elif name == "find_group":
                         result = _tool_find_entity(db, "group", tool_input["name"])
                     elif name == "preview_sql":
-                        result = _tool_preview_sql(db, tool_input["sql"], dialect)
+                        result = _tool_preview_sql(db, tool_input["sql"])
                     else:
                         result = f"알 수 없는 도구: {name}"
                 except Exception as e:

@@ -61,8 +61,8 @@ def make_sql_live(sql: str, question: str, tracer: QueryTracer | None = None) ->
         new_sql = result["sql"]
         # 안전망: 변환 결과가 읽기 전용 검증을 통과해야만 채택
         from text_to_sql.sql_validator import validate_sql
-        from config import MOCK_DB
-        vres = validate_sql(new_sql, dialect="sqlite" if MOCK_DB else "oracle")
+        from config import SQL_DIALECT
+        vres = validate_sql(new_sql, dialect=SQL_DIALECT)
         if not vres.ok:
             pipeline_logger.warning(f"라이브 변환 SQL 검증 실패 — 원본 유지: {vres.errors}")
             return sql, None

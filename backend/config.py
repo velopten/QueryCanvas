@@ -115,11 +115,11 @@ def reset_llm_settings() -> dict:
     _LLM_RUNTIME_PATH.unlink(missing_ok=True)
     return get_llm_settings()
 
-# Oracle DB
-ORACLE_USER = os.getenv("ORACLE_USER", "readonly")
-ORACLE_PASSWORD = os.getenv("ORACLE_PASSWORD", "")
-ORACLE_DSN = os.getenv("ORACLE_DSN", "")
-MOCK_DB = os.getenv("MOCK_DB", "true").lower() == "true"
+# ── DB ──
+# 조회 대상은 도메인 팩이 생성하는 SQLite mock DB 하나다.
+# SQL 문법(생성 프롬프트/검증/가상 view 치환)은 모두 이 값 하나를 따른다 —
+# 다른 백엔드를 붙일 때 바꿀 지점은 db/client.py 의 어댑터와 이 상수뿐이다.
+SQL_DIALECT = "sqlite"
 
 # ── 도메인 팩 ──
 # 도메인 결합 자산(프롬프트/mock 생성기/학습 데이터/가상 view/골든셋)은

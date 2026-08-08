@@ -8,7 +8,7 @@ import text_to_sql.sql_validator as sv
 
 class TestDmlBlocking:
     def test_select_passes(self):
-        r = sv.validate_sql("SELECT 1 FROM DUAL", dialect="oracle")
+        r = sv.validate_sql("SELECT 1 FROM TB_EMP", dialect="sqlite")
         assert r.ok
 
     @pytest.mark.parametrize("sql", [

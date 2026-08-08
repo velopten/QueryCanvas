@@ -33,15 +33,15 @@ class TestResolve:
         assert "VV_EMP_CURRENT" in r.sql
 
     def test_alias_preserved(self, views):
-        views([FakeView(id="VV_X", sql="SELECT 1 A FROM DUAL")])
-        r = vvr.resolve("SELECT V.A FROM VV_X V", dialect="oracle")
+        views([FakeView(id="VV_X", sql="SELECT 1 AS A FROM TB_ANY")])
+        r = vvr.resolve("SELECT V.A FROM VV_X V", dialect="sqlite")
         assert r.resolved == ["VV_X"]
         assert " V" in r.sql or " AS V" in r.sql
 
     def test_no_view_match_passthrough(self, views):
-        views([FakeView(id="VV_X", sql="SELECT 1 FROM DUAL")])
+        views([FakeView(id="VV_X", sql="SELECT 1 FROM TB_ANY")])
         original = "SELECT * FROM TB_EMP"
-        r = vvr.resolve(original, dialect="oracle")
+        r = vvr.resolve(original, dialect="sqlite")
         assert r.resolved == []
         assert r.sql == original
 
@@ -57,12 +57,12 @@ class TestResolve:
     def test_empty_store_passthrough(self, views):
         views([])
         original = "SELECT * FROM VV_ANYTHING"
-        r = vvr.resolve(original, dialect="oracle")
+        r = vvr.resolve(original, dialect="sqlite")
         assert r.sql == original
         assert r.resolved == []
 
     def test_broken_base_sql_reports_error(self, views):
         # sqlglot이 파싱 못 하는 구조적으로 깨진 base SQL
         views([FakeView(id="VV_BAD", sql="SELECT FROM WHERE")])
-        r = vvr.resolve("SELECT * FROM VV_BAD", dialect="oracle")
+        r = vvr.resolve("SELECT * FROM VV_BAD", dialect="sqlite")
         assert r.errors

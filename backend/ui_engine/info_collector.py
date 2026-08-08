@@ -71,7 +71,7 @@ def collect(
 ) -> list[CandidateGroup]:
     """
     extracted (prefilter 결과) 를 받아 case 별 후보를 조회한다.
-    db 는 oracle_client / mock client. .execute(sql, params) 를 가져야 한다.
+    db 는 db.client 의 DB 어댑터. .execute(sql, params) 를 가져야 한다.
     """
     tpls = _load_templates()
     groups: list[CandidateGroup] = []

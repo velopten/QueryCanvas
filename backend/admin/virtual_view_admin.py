@@ -29,8 +29,10 @@ def save(view_id: str, *, meta: dict | None = None, sql: str | None = None) -> d
     if sql is not None:
         # SELECT-only 검증 (필수필터는 view 자체엔 강제 못 함 — bind 가 있기 때문)
         from sqlglot import parse, exp
+
+        from config import SQL_DIALECT
         try:
-            parsed = parse(sql, read="oracle")
+            parsed = parse(sql, read=SQL_DIALECT)
         except Exception as e:
             raise ValueError(f"SQL 파싱 실패: {e}")
         for st in parsed:

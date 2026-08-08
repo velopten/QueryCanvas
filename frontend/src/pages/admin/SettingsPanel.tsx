@@ -49,7 +49,6 @@ export default function SettingsPanel() {
   }
 
   const sysEntries: [string, unknown][] = [
-    ['mock_mode', settings.mock_mode],
     ['db_connected', settings.db_connected],
     ['vector_store_count', settings.vector_store_count],
     ['sql_cache_count', settings.sql_cache_count],

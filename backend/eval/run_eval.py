@@ -172,18 +172,14 @@ def main():
     parser.add_argument("--case", type=str, default=None, help="특정 case id만 실행")
     args = parser.parse_args()
 
-    from config import MOCK_DB, get_llm_settings
+    from config import get_llm_settings
 
     llm = get_llm_settings()
     MODEL_SQL_GEN, SQL_GEN_EFFORT, AGENTIC_SQL = (
         llm["MODEL_SQL_GEN"], llm["SQL_GEN_EFFORT"], llm["AGENTIC_SQL"],
     )
 
-    if not MOCK_DB:
-        print("ERROR: 평가는 Mock DB 기준입니다. MOCK_DB=true 로 실행하세요.", file=sys.stderr)
-        sys.exit(1)
-
-    from db.oracle_client import get_db
+    from db.client import get_db
     db = get_db()
 
     cases = yaml.safe_load(GOLDEN_PATH.read_text(encoding="utf-8"))

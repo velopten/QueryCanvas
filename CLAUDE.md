@@ -1,17 +1,20 @@
 # QueryCanvas
 
-AI 자연어 조회 + 동적 UI 생성. 도메인 팩 교체로 업무 시스템이 바뀌는 구조 (개인 포트폴리오 프로젝트).
+AI 자연어 조회 + 동적 UI 생성. 도메인 팩 교체로 업무 시스템이 바뀌는 구조.
+데모 목적 — 인증/권한, 다중 사용자 동시성은 범위 밖이다.
 
 ## 실행
-- Backend: `cd backend && uvicorn main:app --port 8008` (8000은 다른 프로젝트가 사용 중)
+- Backend: `cd backend && uvicorn main:app --port 8008` (프로젝트 기본 포트 = `API_PORT`, uvicorn 기본값 8000 아님)
 - Frontend: `cd frontend && npm run dev`
 - **도메인 팩**: `DOMAIN=commerce`(기본) — 프롬프트/mock/학습데이터/골든셋이
   `backend/domains/<DOMAIN>/`으로 통째 전환. 도메인별 mock db·chroma 컬렉션·SQL 캐시 분리
-- DB: mock SQLite 기본 (도메인 팩의 `generate_mock.py`가 실행일 기준 최근 12개월 데이터를 매일
-  자동 재생성). Oracle은 MOCK_DB=false 옵션
+- DB: SQLite 단일 백엔드 (도메인 팩의 `generate_mock.py`가 실행일 기준 최근 12개월 데이터를 매일
+  자동 재생성). SQL 문법은 `config.SQL_DIALECT`("sqlite") 한 곳이 단일 소스 — 검증/가상view 치환/
+  프롬프트가 모두 이 값을 따른다. 다른 백엔드를 붙이려면 `db/client.py`에 어댑터
+  (`execute`/`test_connection`/`close`) 추가 + `SQL_DIALECT` 변경 + 도메인 팩 프롬프트 문법 규칙 교체
 - 테스트: `cd backend && python -m pytest tests` (LLM 호출 없음, requirements-test.txt만 필요)
-- 평가: `cd backend && python eval/run_eval.py` (현재 DOMAIN의 골든셋, MOCK_DB=true 필요)
-  - **비용 주의**: 사용자 개인 크레딧 — 가능하면 `--case`/`--limit` 부분 실행, 전체 실행은 꼭 필요할 때만
+- 평가: `cd backend && python eval/run_eval.py` (현재 DOMAIN의 골든셋)
+  - **비용 주의**: 실행마다 API 비용 발생 — 기본은 `--case`/`--limit` 부분 실행, 전체 실행은 회귀 확인이 필요할 때만
   - 웹 UI: 관리자 화면 "평가" 탭 — 실행(SSE 실시간), 이력 조회, 실행 2건 나란히 비교
 
 ## 환경설정
@@ -36,7 +39,7 @@ AI 자연어 조회 + 동적 UI 생성. 도메인 팩 교체로 업무 시스템
 
 ## 백엔드 (`backend/`)
 - `main.py` — FastAPI 진입점, SSE 스트리밍 (`sse_event`), `/query` 파이프라인
-- `config.py` — 환경설정 (`API_HOST`, `API_PORT`, `MOCK_DB`, `DOMAIN`, `domain_dir()`)
+- `config.py` — 환경설정 (`API_HOST`, `API_PORT`, `SQL_DIALECT`, `DOMAIN`, `domain_dir()`)
 - `domains/<name>/` — **도메인 팩**: `prompts.py`(SQL 프롬프트+UI 컨텍스트+추천 질문),
   `generate_mock.py`, `training_data/`, `virtual_views/`, `info_collectors.yaml`, `golden_questions.yaml`
   - 공용 프롬프트 블록은 `ui_engine/prompts/base.py`, 조립은 `ui_engine/prompts/loader.py`
@@ -59,7 +62,7 @@ AI 자연어 조회 + 동적 UI 생성. 도메인 팩 교체로 업무 시스템
   - `info_collector.py` — 도메인 팩 yaml 템플릿 기반 후보 조회 (LLM 미사용)
   - `cost_calculator.py` — LLM 비용 추정
 - `db/`
-  - `oracle_client.py` (도메인별 mock db 초기화), `query_history.py`, `trace_store.py`
+  - `client.py` — 조회 대상 DB 어댑터(SQLite, 도메인별 mock db 초기화), `query_history.py`, `trace_store.py`
   - `saved_views.py` — 저장된 뷰(화면의 메뉴화). 열 때 SQL만 재실행 + 저장된 A2UI spec 바인딩 (LLM 0회)
 - `scripts/` — DDL 추출/파싱 유틸 (실 DB 온보딩용, 스키마 무관)
 
