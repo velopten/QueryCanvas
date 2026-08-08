@@ -1,0 +1,37 @@
+# 벡터 검색 타입별 설정
+# - per_type_n  : 해당 타입에서 가져올 후보 개수 (chroma 1차 검색)
+# - weight      : effective_distance = cosine_distance * weight (낮을수록 우선)
+#                 1.0 = 중립, <1.0 = 우대, >1.0 = 페널티
+# - inject_limit: 프롬프트 컨텍스트에 실제로 주입할 최대 개수
+#
+# 핫리로드 지원 — 저장 즉시 vector_store.search() 가 새 값을 사용한다.
+
+virtual_view:
+  per_type_n: 5
+  weight: 0.70
+  inject_limit: 3
+
+ddl:
+  per_type_n: 8
+  weight: 1.00
+  inject_limit: 3
+
+sql:
+  per_type_n: 6
+  weight: 0.95
+  inject_limit: 3
+
+doc:
+  per_type_n: 8
+  weight: 1.00
+  inject_limit: 4
+
+doc_overlay:
+  per_type_n: 5
+  weight: 0.85
+  inject_limit: 3
+
+doc_patch:
+  per_type_n: 5
+  weight: 0.80
+  inject_limit: 3

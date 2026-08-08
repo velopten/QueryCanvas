@@ -1,0 +1,70 @@
+-- [테이블] TB_ORDER - 주문
+-- [설명] 주문 1건 1행. 최근 12개월 데이터. 매출 금액은 TB_ORDER_ITEM에 있음
+-- [핵심 컬럼]
+--   ORDER_ID(주문ID, INTEGER, PK)
+--   CUST_ID(고객ID, TEXT) — TB_CUSTOMER 참조
+--   ORDER_DATE(주문일, TEXT 'YYYY-MM-DD')
+--   STATUS(주문상태, TEXT) — 01주문접수/02배송중/03구매확정/04취소/05반품 (TB_CODE GRP_CD='ORDER_STATUS')
+--   CHANNEL(채널, TEXT) — 01웹/02앱/03오프라인 (TB_CODE GRP_CD='CHANNEL')
+-- [참고] 매출 집계 시 취소(04)/반품(05)은 제외: STATUS NOT IN ('04','05')
+CREATE TABLE TB_ORDER (
+    ORDER_ID INTEGER PRIMARY KEY,
+    CUST_ID TEXT NOT NULL,
+    ORDER_DATE TEXT NOT NULL,
+    STATUS TEXT NOT NULL,
+    CHANNEL TEXT NOT NULL
+);
+
+-- [테이블] TB_ORDER_ITEM - 주문 품목
+-- [설명] 주문 1건에 품목 1~3행. 금액(AMOUNT)은 단가×수량이 이미 계산된 값(원)
+-- [핵심 컬럼]
+--   ORDER_ID(주문ID, INTEGER) — TB_ORDER 참조
+--   PROD_ID(상품ID, TEXT) — TB_PRODUCT 참조
+--   QTY(수량, INTEGER)
+--   AMOUNT(품목 금액(원), INTEGER)
+-- [참고] 매출 = SUM(AMOUNT). 카테고리별 매출은 TB_PRODUCT→TB_CATEGORY 조인
+CREATE TABLE TB_ORDER_ITEM (
+    ORDER_ID INTEGER NOT NULL,
+    PROD_ID TEXT NOT NULL,
+    QTY INTEGER NOT NULL,
+    AMOUNT INTEGER NOT NULL
+);
+
+-- [테이블] TB_PRODUCT - 상품 마스터
+-- [설명] 상품 64종, 8개 카테고리
+-- [핵심 컬럼]
+--   PROD_ID(상품ID, TEXT, PK), PROD_NAME(상품명, TEXT)
+--   CATEGORY_CD(카테고리코드, TEXT) — TB_CATEGORY 참조
+--   PRICE(정가(원), INTEGER), LAUNCH_DATE(출시일, TEXT)
+CREATE TABLE TB_PRODUCT (
+    PROD_ID TEXT PRIMARY KEY,
+    PROD_NAME TEXT NOT NULL,
+    CATEGORY_CD TEXT NOT NULL,
+    PRICE INTEGER NOT NULL,
+    LAUNCH_DATE TEXT NOT NULL
+);
+
+-- [테이블] TB_CATEGORY - 상품 카테고리
+-- [컬럼] CATEGORY_CD(PK), CATEGORY_NAME(전자기기/패션/식품/뷰티/스포츠/도서/홈리빙/완구)
+CREATE TABLE TB_CATEGORY (
+    CATEGORY_CD TEXT PRIMARY KEY,
+    CATEGORY_NAME TEXT NOT NULL
+);
+
+-- [테이블] TB_CUSTOMER - 고객 마스터
+-- [설명] 고객 300명. 동명이인 존재 (김민준 2명, 이서연 2명 — 지역/등급으로 구분)
+-- [핵심 컬럼]
+--   CUST_ID(고객ID, TEXT, PK), CUST_NAME(고객명, TEXT)
+--   GRADE(등급, TEXT) — 01 VIP/02 일반/03 신규 (TB_CODE GRP_CD='GRADE')
+--   REGION_CD(지역, TEXT) — R01서울~R07제주 (TB_CODE GRP_CD='REGION')
+--   JOIN_DATE(가입일, TEXT), EMAIL, PHONE, GENDER
+CREATE TABLE TB_CUSTOMER (
+    CUST_ID TEXT PRIMARY KEY,
+    CUST_NAME TEXT NOT NULL,
+    GRADE TEXT NOT NULL,
+    REGION_CD TEXT NOT NULL,
+    JOIN_DATE TEXT NOT NULL,
+    EMAIL TEXT,
+    PHONE TEXT,
+    GENDER TEXT
+);

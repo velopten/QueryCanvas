@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+chroma_data/
+logs/
+backend/eval/results/
+backend/db/llm_settings.json
+node_modules/
+dist/
+.vite/
+PLAN.md
+*.db
+.claude/plans/
+
+# Claude Code 로컬 설정 (개인 권한 허용 목록)
+.claude/settings.local.json

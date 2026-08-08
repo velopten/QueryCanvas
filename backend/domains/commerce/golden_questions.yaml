@@ -1,0 +1,96 @@
+# Text-to-SQL 골든 평가셋 — 커머스 도메인 (Mock SQLite 기준)
+#
+# 비용 절약을 위해 소규모(8케이스)로 유지한다. 실행:
+#   DOMAIN=commerce python eval/run_eval.py
+#
+# mock 데이터는 실행일 기준 최근 12개월로 매일 재생성되므로 상대 기간 질문이 항상 유효하다.
+
+# "최근 N개월"은 일 단위/월 단위 경계 해석이 모두 유효 (VV는 월 단위) → rows_only 채점
+- id: sales_by_category_3m
+  question: "최근 3개월 카테고리별 매출 보여줘"
+  reference_sql: |
+    SELECT c.CATEGORY_NAME, SUM(i.AMOUNT) AS AMT
+    FROM TB_ORDER o
+    JOIN TB_ORDER_ITEM i ON o.ORDER_ID = i.ORDER_ID
+    JOIN TB_PRODUCT p ON i.PROD_ID = p.PROD_ID
+    JOIN TB_CATEGORY c ON p.CATEGORY_CD = c.CATEGORY_CD
+    WHERE o.STATUS NOT IN ('04','05') AND o.ORDER_DATE >= date('now', '-3 months')
+    GROUP BY c.CATEGORY_NAME
+  check: { mode: rows_only, min_rows: 6, max_rows: 40 }
+
+- id: monthly_sales_trend
+  question: "최근 6개월 월별 매출 추이"
+  reference_sql: |
+    SELECT strftime('%Y-%m', o.ORDER_DATE) AS YM, SUM(i.AMOUNT) AS AMT
+    FROM TB_ORDER o
+    JOIN TB_ORDER_ITEM i ON o.ORDER_ID = i.ORDER_ID
+    WHERE o.STATUS NOT IN ('04','05') AND o.ORDER_DATE >= date('now', '-6 months')
+    GROUP BY YM
+  check: { mode: rows_only, min_rows: 5, max_rows: 8 }
+
+- id: top5_products_this_month
+  question: "이번 달 가장 많이 팔린 상품 TOP 5"
+  reference_sql: |
+    SELECT p.PROD_NAME, SUM(i.QTY) AS QTY
+    FROM TB_ORDER o
+    JOIN TB_ORDER_ITEM i ON o.ORDER_ID = i.ORDER_ID
+    JOIN TB_PRODUCT p ON i.PROD_ID = p.PROD_ID
+    WHERE o.STATUS NOT IN ('04','05')
+      AND strftime('%Y-%m', o.ORDER_DATE) = strftime('%Y-%m', 'now')
+    GROUP BY p.PROD_ID, p.PROD_NAME
+    ORDER BY QTY DESC LIMIT 5
+  check: { mode: rows_only, min_rows: 1, max_rows: 5 }
+
+- id: return_rate_by_region
+  question: "지역별 반품률 비교해줘"
+  reference_sql: |
+    SELECT r.CD_NAME AS REGION,
+           ROUND(100.0 * SUM(CASE WHEN o.STATUS='05' THEN 1 ELSE 0 END) / COUNT(*), 1) AS RET_RATE
+    FROM TB_ORDER o
+    JOIN TB_CUSTOMER cu ON o.CUST_ID = cu.CUST_ID
+    JOIN TB_CODE r ON r.GRP_CD='REGION' AND r.CD = cu.REGION_CD
+    GROUP BY r.CD_NAME
+  check: { mode: contain, min_rows: 5 }
+
+- id: customers_by_grade
+  question: "등급별 고객 수 알려줘"
+  reference_sql: |
+    SELECT g.CD_NAME, COUNT(*) AS CNT
+    FROM TB_CUSTOMER cu
+    JOIN TB_CODE g ON g.GRP_CD='GRADE' AND g.CD = cu.GRADE
+    GROUP BY g.CD_NAME
+  check: { mode: contain, min_rows: 3 }
+
+- id: channel_share_trend
+  question: "앱 채널 주문 비중이 늘고 있는지 월별로 보여줘"
+  reference_sql: |
+    SELECT strftime('%Y-%m', o.ORDER_DATE) AS YM,
+           SUM(CASE WHEN o.CHANNEL='02' THEN 1 ELSE 0 END) AS APP_CNT
+    FROM TB_ORDER o
+    WHERE o.ORDER_DATE >= date('now', '-6 months')
+    GROUP BY YM
+  check: { mode: rows_only, min_rows: 4 }
+
+- id: namesake_customer_orders
+  question: "김민준 고객의 최근 3개월 주문 건수 알려줘"
+  reference_sql: |
+    SELECT cu.CUST_ID, cu.CUST_NAME, COUNT(DISTINCT o.ORDER_ID) AS CNT
+    FROM TB_CUSTOMER cu
+    LEFT JOIN TB_ORDER o ON o.CUST_ID = cu.CUST_ID
+      AND o.ORDER_DATE >= date('now', '-3 months')
+    WHERE cu.CUST_NAME = '김민준'
+    GROUP BY cu.CUST_ID, cu.CUST_NAME
+  check: { mode: rows_only, min_rows: 1, max_rows: 10 }
+
+- id: filter_promotion_beauty_sales
+  question: "뷰티 카테고리의 이번 달 매출 알려줘"
+  reference_sql: |
+    SELECT c.CATEGORY_NAME, SUM(i.AMOUNT) AS AMT
+    FROM TB_ORDER o
+    JOIN TB_ORDER_ITEM i ON o.ORDER_ID = i.ORDER_ID
+    JOIN TB_PRODUCT p ON i.PROD_ID = p.PROD_ID
+    JOIN TB_CATEGORY c ON p.CATEGORY_CD = c.CATEGORY_CD
+    WHERE c.CATEGORY_NAME = '뷰티' AND o.STATUS NOT IN ('04','05')
+      AND strftime('%Y-%m', o.ORDER_DATE) = strftime('%Y-%m', 'now')
+    GROUP BY c.CATEGORY_NAME
+  check: { mode: contain, min_rows: 1 }

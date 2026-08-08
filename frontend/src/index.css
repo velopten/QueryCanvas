@@ -1,0 +1,78 @@
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "tailwindcss";
+
+/* ─── 디자인 토큰 ────────────────────────────────────────────────
+ * 중립색: gray → slate 재매핑 (데이터 도구에 맞는 차가운 톤).
+ * 기존 컴포넌트의 gray-* 클래스가 그대로 slate 값을 갖는다.
+ * 액센트: violet 단일 액센트 — 활성 메뉴/선택 상태/포커스에만 사용.
+ * 주 액션 버튼은 ink(짙은 남색)로, 시맨틱 색(emerald/red/amber)과 분리.
+ */
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Segoe UI',
+    'Malgun Gothic', sans-serif;
+
+  --color-gray-50: var(--color-slate-50);
+  --color-gray-100: var(--color-slate-100);
+  --color-gray-200: var(--color-slate-200);
+  --color-gray-300: var(--color-slate-300);
+  --color-gray-400: var(--color-slate-400);
+  --color-gray-500: var(--color-slate-500);
+  --color-gray-600: var(--color-slate-600);
+  --color-gray-700: var(--color-slate-700);
+  --color-gray-800: var(--color-slate-800);
+  --color-gray-900: var(--color-slate-900);
+  --color-gray-950: var(--color-slate-950);
+
+  /* 주 액션 (버튼) */
+  --color-ink: #0f172a;
+  --color-ink-hover: #293548;
+
+  /* 단일 액센트 — AI/활성/선택 */
+  --color-accent: #7c3aed;
+  --color-accent-strong: #6d28d9;
+  --color-accent-soft: #f5f3ff;
+  --color-accent-muted: #ddd6fe;
+
+  /* 다크 레일 (양쪽 사이드바 공유) */
+  --color-rail: #0b1120;
+  --color-rail-hover: #1a2337;
+  --color-rail-active: #232e47;
+  --color-rail-border: #1e293b;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-bottom {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.slide-in-from-bottom-2 {
+  animation: slide-in-from-bottom 0.4s ease-out;
+}
+
+.zoom-in-95 {
+  animation: zoom-in 0.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in, .slide-in-from-bottom-2, .zoom-in-95 {
+    animation: none;
+  }
+}

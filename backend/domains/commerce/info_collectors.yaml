@@ -1,0 +1,44 @@
+# 추가정보 수집기 case 템플릿 (커머스 — SQLite mock 기준)
+# 에이전트의 find_person → person_* 케이스, find_group → group_* 케이스로 매핑된다.
+# 커머스에서는 개인 = 고객, 그룹 = 상품/카테고리.
+# SQL 본문은 :NAME 바인드를 사용한다 (자동 quote/escape). SELECT만 허용.
+
+person_exact:
+  description: 고객 후보 조회 (동명이인 확인용 — 지역/등급 함께 반환)
+  sql: |
+    SELECT cu.CUST_ID, cu.CUST_NAME, g.CD_NAME AS GRADE_NAME,
+           r.CD_NAME AS REGION_NAME, cu.JOIN_DATE
+    FROM TB_CUSTOMER cu
+    LEFT JOIN TB_CODE g ON g.GRP_CD = 'GRADE' AND g.CD = cu.GRADE
+    LEFT JOIN TB_CODE r ON r.GRP_CD = 'REGION' AND r.CD = cu.REGION_CD
+    WHERE cu.CUST_NAME = :NAME
+    LIMIT 20
+
+person_partial:
+  description: 고객 후보 조회 (부분 일치 — 이름 일부만 아는 경우)
+  sql: |
+    SELECT cu.CUST_ID, cu.CUST_NAME, g.CD_NAME AS GRADE_NAME,
+           r.CD_NAME AS REGION_NAME, cu.JOIN_DATE
+    FROM TB_CUSTOMER cu
+    LEFT JOIN TB_CODE g ON g.GRP_CD = 'GRADE' AND g.CD = cu.GRADE
+    LEFT JOIN TB_CODE r ON r.GRP_CD = 'REGION' AND r.CD = cu.REGION_CD
+    WHERE cu.CUST_NAME LIKE '%' || :NAME || '%'
+    LIMIT 20
+
+group_exact:
+  description: 상품/카테고리 후보 조회 (정확 일치)
+  sql: |
+    SELECT p.PROD_ID, p.PROD_NAME, c.CATEGORY_NAME, p.PRICE
+    FROM TB_PRODUCT p
+    JOIN TB_CATEGORY c ON p.CATEGORY_CD = c.CATEGORY_CD
+    WHERE p.PROD_NAME = :NAME OR c.CATEGORY_NAME = :NAME
+    LIMIT 20
+
+group_partial:
+  description: 상품/카테고리 후보 조회 (부분 일치)
+  sql: |
+    SELECT p.PROD_ID, p.PROD_NAME, c.CATEGORY_NAME, p.PRICE
+    FROM TB_PRODUCT p
+    JOIN TB_CATEGORY c ON p.CATEGORY_CD = c.CATEGORY_CD
+    WHERE p.PROD_NAME LIKE '%' || :NAME || '%' OR c.CATEGORY_NAME LIKE '%' || :NAME || '%'
+    LIMIT 20

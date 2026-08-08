@@ -1,0 +1,21 @@
+id: VV_SALES_MONTHLY
+sql_file: sql/vv_sales_monthly.sql
+purpose: 월 × 카테고리 단위 매출 집계 (주문수/수량/매출액 — 취소·반품 제외)
+use_when: 월별 매출 추이, 카테고리별 매출 비교/비중, 기간별 매출 통계 등 집계성 질문
+columns:
+  - {name: YM, desc: "연월 'YYYY-MM'"}
+  - {name: CATEGORY_CD, desc: 카테고리 코드}
+  - {name: CATEGORY_NAME, desc: 카테고리명}
+  - {name: ORDER_CNT, desc: 주문 수}
+  - {name: QTY, desc: 판매 수량}
+  - {name: SALES_AMT, desc: 매출액(원)}
+required_params: []
+optional_filters: [YM, CATEGORY_CD]
+sample_questions:
+  - 월별 매출 추이 보여줘
+  - 카테고리별 매출 비중
+  - 최근 3개월 카테고리별 매출
+  - 뷰티 카테고리 매출이 늘고 있어?
+notes: |
+  취소(04)/반품(05)은 이미 제외되어 있음. 일별/고객별 분석에는 부적합 —
+  TB_ORDER 직접 사용. 반품률 질문에도 부적합 (반품이 제외돼 있음).
