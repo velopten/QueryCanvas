@@ -9,7 +9,6 @@ backend/db/llm_settings.json
 node_modules/
 dist/
 .vite/
-PLAN.md
 *.db
 .claude/plans/
 

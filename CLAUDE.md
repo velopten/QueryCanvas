@@ -64,7 +64,6 @@ AI 자연어 조회 + 동적 UI 생성. 도메인 팩 교체로 업무 시스템
 - `db/`
   - `client.py` — 조회 대상 DB 어댑터(SQLite, 도메인별 mock db 초기화), `query_history.py`, `trace_store.py`
   - `saved_views.py` — 저장된 뷰(화면의 메뉴화). 열 때 SQL만 재실행 + 저장된 A2UI spec 바인딩 (LLM 0회)
-- `scripts/` — DDL 추출/파싱 유틸 (실 DB 온보딩용, 스키마 무관)
 
 ## 프론트엔드 (`frontend/`, React + Vite + TS)
 - 디자인 토큰: `index.css` `@theme` — 중립색 gray→slate 재매핑, 주 액션 `ink`, 단일 액센트 `accent`(violet, 활성/선택/포커스 전용), 사이드바 `rail`. 새 UI는 blue-* 대신 이 토큰 사용
