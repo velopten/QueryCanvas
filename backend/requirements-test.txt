@@ -1,6 +1,10 @@
-# 단위 테스트 전용 최소 의존성 (CI 고속화 — chromadb/torch 등 무거운 런타임 의존성 제외)
+# Minimal deps for unit tests (CI speed-up: excludes heavy runtime deps like chromadb/torch).
+# ASCII-only comments on purpose: pip decodes requirements files with the system
+# locale codec, so non-ASCII text breaks `pip install -r` on cp949/cp1252 shells.
 pytest>=8.0.0
 anthropic>=0.120.0
 sqlglot>=25.0.0
 PyYAML>=6.0
 python-dotenv>=1.0.0
+# ui_engine.a2ui_catalog imports a2ui at module load, so ui_decision tests need it.
+a2ui-agent-sdk>=0.5.0

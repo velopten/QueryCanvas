@@ -9,6 +9,8 @@ sentence-transformers>=3.0.0
 sqlglot>=25.0.0
 PyYAML>=6.0
 a2ui-agent-sdk>=0.5.0
-# a2ui-agent-sdk가 opentelemetry-api/sdk를 최신으로 끌어올리므로 exporter도 함께 상향
-# (구버전 exporter + 신버전 sdk 조합이면 chromadb import가 깨짐)
+# a2ui-agent-sdk bumps opentelemetry-api/sdk, so the exporter must be bumped too
+# (old exporter + new sdk breaks the chromadb import).
+# ASCII-only comments on purpose: pip decodes requirements files with the system
+# locale codec, so non-ASCII text breaks `pip install -r` on cp949/cp1252 shells.
 opentelemetry-exporter-otlp-proto-grpc>=1.42.0
