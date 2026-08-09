@@ -177,7 +177,6 @@ export default function TrainingPanel() {
           value={curatorInput}
           onChange={e => { setCuratorInput(e.target.value); setCuratorPreviewData(null); setCuratorError(null) }}
           rows={5}
-          placeholder="예: 반차(LEAVE_TYPE='02')는 DAYS가 0.5로 기록되므로 연차 소진 집계 시 SUM(DAYS)를 사용해야 합니다."
           className={inputClass}
         />
         <div className="mt-2 flex items-center gap-2">

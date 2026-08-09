@@ -144,7 +144,7 @@ export default function VectorPanel() {
             value={testQuery}
             onChange={e => setTestQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleTest()}
-            placeholder="예: 이번 달 카테고리별 매출 현황"
+            placeholder="검색할 질문 입력"
             className={inputClass}
           />
           <Button size="md" onClick={handleTest} busy={searching} disabled={!testQuery.trim()}>

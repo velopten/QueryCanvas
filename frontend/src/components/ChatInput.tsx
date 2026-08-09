@@ -105,7 +105,6 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(({ onSubmit, loading, sugge
                   className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${mode === 'chat' ? 'text-accent-strong font-medium' : 'text-gray-700'}`}
                 >
                   일반 대화
-                  <span className="block text-xs text-gray-400">질문/조회 — 후속 질문은 자동 판단</span>
                 </button>
                 <button
                   onClick={() => { if (hasScreen) { setMode('ui_edit'); setMenuOpen(false); inputRef.current?.focus() } }}
