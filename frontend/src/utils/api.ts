@@ -1,6 +1,32 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api' })
+/**
+ * 정적 공개 모드 — 백엔드 없이 빌드 시점 스냅샷(public/api-snapshot)만으로 동작한다.
+ * 조회(GET)는 JSON 파일로 우회하고, 변경·LLM 호출은 전부 차단된다.
+ * 스냅샷 생성: backend/scripts/snapshot_static.py
+ */
+export const IS_STATIC = import.meta.env.VITE_STATIC === '1'
+
+/** 정적 모드에서 차단된 동작임을 알리는 오류 — UI 가 문구를 그대로 보여준다. */
+export class StaticModeError extends Error {
+  constructor() {
+    super('읽기 전용으로 공개된 화면입니다. 조회만 가능합니다.')
+    this.name = 'StaticModeError'
+  }
+}
+
+const api = axios.create({ baseURL: IS_STATIC ? '/api-snapshot' : '/api' })
+
+if (IS_STATIC) {
+  api.interceptors.request.use(config => {
+    if ((config.method ?? 'get').toLowerCase() !== 'get') throw new StaticModeError()
+    // /history/abc → /history/abc.json (쿼리스트링은 스냅샷 대상이 아니므로 버린다)
+    const [path] = (config.url ?? '').split('?')
+    config.url = `${path.replace(/\/$/, '')}.json`
+    config.params = undefined
+    return config
+  })
+}
 
 /**
  * 공용 SSE 스트림 리더 — fetch 스트리밍 응답을 `event:`/`data:` 쌍으로 파싱해
@@ -14,6 +40,11 @@ function openSseStream(
   onError: (message: string) => void,
 ): () => void {
   const controller = new AbortController()
+  if (IS_STATIC) {
+    // SSE 는 전부 LLM 호출 경로 — 정적 모드에서는 시작조차 하지 않는다
+    onError(new StaticModeError().message)
+    return () => {}
+  }
   ;(async () => {
     try {
       const response = await fetch(url, { ...init, signal: controller.signal })

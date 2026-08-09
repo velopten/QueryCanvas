@@ -1,0 +1,1 @@
+{"db_connected":true,"vector_store_count":20,"sql_cache_count":3,"llm":{"MODEL_SQL_GEN":"claude-sonnet-5","MODEL_UI_DECISION":"claude-sonnet-5","MODEL_CLASSIFY":"claude-haiku-4-5","MODEL_FIX":"claude-haiku-4-5","MODEL_CURATOR":"claude-sonnet-5","SQL_GEN_EFFORT":"high","AGENTIC_SQL":true},"effort_levels":["low","medium","high","xhigh","max"]}

@@ -97,7 +97,7 @@ export default function VirtualViewPanel() {
         className="col-span-4 max-h-[80vh] overflow-y-auto"
         title={`가상 View (${items.length})`}
         actions={
-          <Button size="xs" variant="secondary" onClick={reindex} busy={reindexing}>
+          <Button size="xs" variant="secondary" mutating onClick={reindex} busy={reindexing}>
             {reindexing ? '...' : '재임베딩'}
           </Button>
         }
@@ -125,8 +125,8 @@ export default function VirtualViewPanel() {
               <textarea value={sqlText} onChange={e => setSqlText(e.target.value)} rows={12}
                 className={codeInputClass} spellCheck={false} />
               <div className="flex gap-2 mt-2">
-                <Button onClick={save}>저장</Button>
-                <Button variant="secondary" onClick={test}>Test Run</Button>
+                <Button mutating onClick={save}>저장</Button>
+                <Button variant="secondary" mutating onClick={test}>Test Run</Button>
                 <StatusText status={status} />
               </div>
             </Panel>

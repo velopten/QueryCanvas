@@ -24,7 +24,7 @@ export default function WeightsPanel() {
     <Panel
       title="검색 가중치 (retrieval_weights.yaml)"
       description="per_type_n: chroma 1차 후보 수 · weight: effective_distance = distance × weight (낮을수록 우선) · inject_limit: 프롬프트에 실제 주입할 최대 개수"
-      actions={<Button onClick={save}>저장</Button>}
+      actions={<Button mutating onClick={save}>저장</Button>}
     >
       <table className="w-full text-xs">
         <thead className="bg-gray-100">

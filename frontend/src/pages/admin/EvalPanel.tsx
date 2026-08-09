@@ -121,7 +121,7 @@ export default function EvalPanel() {
         title="골든셋 평가 실행"
         description="현재 서버 설정(모델/effort/에이전틱)으로 골든 질문셋을 실행하고 정확도/지연/비용을 기록합니다. 프롬프트·모델·검색 가중치 변경 전후로 실행해서 회귀를 확인하세요."
         actions={
-          <Button size="md" onClick={handleRun} busy={running}>
+          <Button size="md" mutating onClick={handleRun} busy={running}>
             {running ? '실행 중...' : '평가 실행'}
           </Button>
         }

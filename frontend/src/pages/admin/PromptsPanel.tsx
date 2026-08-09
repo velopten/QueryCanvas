@@ -17,7 +17,7 @@ function PromptEditor({ label, value, onChange, onSave }: {
             <button onClick={() => setMode('edit')} className={`px-2.5 py-1 text-xs rounded ${mode === 'edit' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}>편집</button>
             <button onClick={() => setMode('preview')} className={`px-2.5 py-1 text-xs rounded ${mode === 'preview' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}>미리보기</button>
           </div>
-          <Button size="xs" onClick={onSave}>저장</Button>
+          <Button size="xs" mutating onClick={onSave}>저장</Button>
         </div>
       </div>
       {mode === 'edit' ? (

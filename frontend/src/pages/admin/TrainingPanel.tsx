@@ -5,6 +5,7 @@ import {
   type CuratorPreview, type OverlayItem,
 } from '../../utils/api'
 import { Button, Panel, Badge, EmptyState, inputClass, type BadgeTone } from '../../components/ui'
+import { IS_STATIC } from '../../utils/api'
 
 function GuideModal({ onClose }: { onClose: () => void }) {
   return (
@@ -180,7 +181,7 @@ export default function TrainingPanel() {
           className={inputClass}
         />
         <div className="mt-2 flex items-center gap-2">
-          <Button size="md" onClick={handlePreview} busy={curatorLoading} disabled={!curatorInput.trim()}>
+          <Button size="md" mutating onClick={handlePreview} busy={curatorLoading} disabled={!curatorInput.trim()}>
             {curatorLoading ? 'AI 분석 중...' : '미리보기'}
           </Button>
           {curatorPreviewData && (
@@ -245,7 +246,7 @@ export default function TrainingPanel() {
             )}
 
             <div className="flex items-center gap-2 pt-2">
-              <Button size="md" onClick={handleCommit} busy={committing}>
+              <Button size="md" mutating onClick={handleCommit} busy={committing}>
                 {committing ? '저장 중...' : '승인하고 저장'}
               </Button>
               <span className="text-xs text-gray-500">
@@ -267,7 +268,7 @@ export default function TrainingPanel() {
               <div key={o.file} className="border border-gray-200 rounded-lg p-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-mono text-gray-600">{o.file}</span>
-                  <button onClick={() => handleDeleteOverlay(o.file)} className="text-xs text-red-500 hover:text-red-700">삭제</button>
+                  {!IS_STATIC && <button onClick={() => handleDeleteOverlay(o.file)} className="text-xs text-red-500 hover:text-red-700">삭제</button>}
                 </div>
                 <pre className="text-[11px] text-gray-500 whitespace-pre-wrap max-h-24 overflow-y-auto">{o.preview}</pre>
               </div>
@@ -300,7 +301,7 @@ export default function TrainingPanel() {
                   <Badge tone={DOC_TONE[doc.type] ?? 'neutral'}>{docLabel(doc.type)}</Badge>
                   <span className="text-xs text-gray-400">{doc.id}</span>
                 </div>
-                <button onClick={() => handleDelete(doc.id)} className="text-xs text-red-500 hover:text-red-700">삭제</button>
+                {!IS_STATIC && <button onClick={() => handleDelete(doc.id)} className="text-xs text-red-500 hover:text-red-700">삭제</button>}
               </div>
               <pre className="text-xs text-gray-600 whitespace-pre-wrap max-h-32 overflow-y-auto">{doc.content}</pre>
             </div>

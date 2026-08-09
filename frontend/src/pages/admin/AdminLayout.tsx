@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ADMIN_GROUPS, ADMIN_SECTIONS } from './sections'
+import { IS_STATIC } from '../../utils/api'
 
 /**
  * 관리자 콘솔 레이아웃 — 조회 화면과 같은 다크 레일을 공유하는
@@ -68,6 +69,11 @@ export default function AdminLayout() {
             <h1 className="text-sm font-semibold text-gray-900">{current?.label ?? '관리자'}</h1>
             {current && <p className="text-xs text-gray-500">{current.description}</p>}
           </div>
+          {IS_STATIC && (
+            <span className="ml-auto text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              읽기 전용 — 공개 스냅샷
+            </span>
+          )}
         </header>
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-6 py-6">

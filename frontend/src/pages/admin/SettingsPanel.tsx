@@ -62,8 +62,8 @@ export default function SettingsPanel() {
         description='저장 즉시 다음 질의부터 적용됩니다. 변경 전후 "평가" 메뉴로 회귀를 확인하세요.'
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={reset}>기본값 복귀</Button>
-            <Button size="md" onClick={save}>저장</Button>
+            <Button variant="secondary" size="sm" mutating onClick={reset}>기본값 복귀</Button>
+            <Button size="md" mutating onClick={save}>저장</Button>
           </>
         }
       >

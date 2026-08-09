@@ -1,0 +1,1 @@
+{"data":{"virtual_view":{"per_type_n":5,"weight":0.7,"inject_limit":3},"ddl":{"per_type_n":8,"weight":1.0,"inject_limit":3},"sql":{"per_type_n":6,"weight":0.95,"inject_limit":3},"doc":{"per_type_n":8,"weight":1.0,"inject_limit":4},"doc_overlay":{"per_type_n":5,"weight":0.85,"inject_limit":3},"doc_patch":{"per_type_n":5,"weight":0.8,"inject_limit":3}}}

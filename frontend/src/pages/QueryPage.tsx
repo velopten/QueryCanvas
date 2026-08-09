@@ -9,7 +9,7 @@ import StreamingSteps, { type StepState } from '../components/StreamingSteps'
 import {
   queryStream, uiEditStream, rerunHistory, getMeta,
   getHistoryList, getHistoryDetail,
-  createSavedView, listSavedViews, openSavedView,
+  createSavedView, listSavedViews, openSavedView, IS_STATIC,
   type QueryContext, type HistoryEntry, type SavedView,
 } from '../utils/api'
 import type { UiSpec, A2uiMessage } from '../types'
@@ -562,7 +562,13 @@ export default function QueryPage() {
           )}
         </div>
 
-        <ChatInput ref={chatInputRef} onSubmit={handleQuery} loading={loading} suggestions={suggestions} hasScreen={hasScreen} />
+        {IS_STATIC ? (
+          <div className="px-4 py-3 text-center text-sm text-gray-500 border-t border-gray-200 bg-gray-50">
+            읽기 전용으로 공개된 화면입니다 — 왼쪽에서 지난 대화를 선택해 결과를 볼 수 있습니다.
+          </div>
+        ) : (
+          <ChatInput ref={chatInputRef} onSubmit={handleQuery} loading={loading} suggestions={suggestions} hasScreen={hasScreen} />
+        )}
       </div>
     </div>
   )

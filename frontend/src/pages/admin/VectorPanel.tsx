@@ -101,7 +101,7 @@ export default function VectorPanel() {
           title="학습 데이터"
           description="DDL + SQL + 문서 임베딩"
           actions={
-            <Button size="xs" onClick={handleRetrain} busy={retraining}>
+            <Button size="xs" mutating onClick={handleRetrain} busy={retraining}>
               {retraining ? '재임베딩 중...' : '재임베딩'}
             </Button>
           }
@@ -113,7 +113,7 @@ export default function VectorPanel() {
           title="SQL 캐시"
           description="질문→SQL 매핑"
           actions={
-            <Button variant="danger" size="xs" onClick={handleClearCache} busy={clearingCache}>
+            <Button variant="danger" size="xs" mutating onClick={handleClearCache} busy={clearingCache}>
               {clearingCache ? '비우는 중...' : '캐시 비우기'}
             </Button>
           }
@@ -147,7 +147,7 @@ export default function VectorPanel() {
             placeholder="검색할 질문 입력"
             className={inputClass}
           />
-          <Button size="md" onClick={handleTest} busy={searching} disabled={!testQuery.trim()}>
+          <Button size="md" mutating onClick={handleTest} busy={searching} disabled={!testQuery.trim()}>
             {searching ? '검색 중...' : '검색'}
           </Button>
         </div>

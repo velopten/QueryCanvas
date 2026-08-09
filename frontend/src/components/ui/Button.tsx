@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react'
+import { IS_STATIC } from '../../utils/api'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 export type ButtonSize = 'xs' | 'sm' | 'md'
@@ -7,6 +8,11 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
   busy?: boolean
+  /**
+   * 서버 상태를 바꾸거나 LLM 을 호출하는 동작.
+   * 정적 공개 모드에서는 자동으로 비활성화된다 — 기능이 있다는 건 보이되 실행은 막는다.
+   */
+  mutating?: boolean
 }
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -23,10 +29,12 @@ const SIZE: Record<ButtonSize, string> = {
 }
 
 /** 프로젝트 공통 버튼. busy=true 면 스피너와 함께 비활성화된다. */
-export default function Button({ variant = 'primary', size = 'sm', busy, disabled, children, className = '', ...rest }: Props) {
+export default function Button({ variant = 'primary', size = 'sm', busy, mutating, disabled, children, className = '', title, ...rest }: Props) {
+  const blocked = mutating && IS_STATIC
   return (
     <button
-      disabled={disabled || busy}
+      title={blocked ? '읽기 전용으로 공개된 화면입니다' : title}
+      disabled={disabled || busy || blocked}
       className={`inline-flex items-center justify-center gap-1.5 font-medium transition-colors
         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
         disabled:opacity-40 disabled:cursor-not-allowed shrink-0

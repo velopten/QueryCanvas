@@ -203,5 +203,6 @@ frontend/
 
 ## 문서
 
+- [docs/DEPLOY.md](docs/DEPLOY.md) — 읽기 전용 정적 스냅샷으로 공개 배포하기
 - [docs/a2ui-notes.md](docs/a2ui-notes.md) — A2UI 계약과 구현 시 함정 10가지
 - [CLAUDE.md](CLAUDE.md) — 코드 작업 시 지켜야 하는 규칙과 모듈 지도

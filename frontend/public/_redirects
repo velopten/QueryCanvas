@@ -1,0 +1,3 @@
+# SPA 폴백 — /admin/traces 같은 딥링크가 404 나지 않도록 index.html 로 넘긴다.
+# api-snapshot 은 실제 파일이 있으므로 이 규칙보다 먼저 매칭된다 (Cloudflare Pages 는 정적 파일 우선).
+/*    /index.html   200
