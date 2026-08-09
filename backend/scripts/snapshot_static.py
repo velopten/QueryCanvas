@@ -27,10 +27,14 @@ BASE = os.getenv("SNAPSHOT_BASE", "http://localhost:8008").rstrip("/")
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO_ROOT / "frontend" / "public" / "api-snapshot"
 
-# 공개하면 프롬프트 엔지니어링과 PII 매핑이 그대로 드러나는 필드.
-# 되돌릴 수 없는 노출이라 기본값은 마스킹이다.
-SENSITIVE_KEYS = {"system_prompt", "user_message", "pii_mapping"}
+# 마스킹 대상은 성격이 다른 두 묶음이라 플래그를 나눈다.
+#   프롬프트: 공개해도 되는 자산일 수 있음 (포트폴리오 목적 등)
+#   PII 매핑: [PERSON_1] → 실명 대응표. 프롬프트가 아니므로 별도로 판단해야 한다
+PROMPT_KEYS = {"system_prompt", "user_message"}
+PII_KEYS = {"pii_mapping"}
+
 MASK_PROMPTS = os.getenv("SNAPSHOT_INCLUDE_PROMPTS") != "1"
+MASK_PII = os.getenv("SNAPSHOT_INCLUDE_PII") != "1"
 MASK_TEXT = "(비공개 — 공개 스냅샷에서 제외됨)"
 
 # 파라미터 없이 그대로 뜨는 엔드포인트
@@ -70,12 +74,16 @@ def fetch(path: str):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _should_mask(key: str) -> bool:
+    return (MASK_PROMPTS and key in PROMPT_KEYS) or (MASK_PII and key in PII_KEYS)
+
+
 def mask(node):
     """민감 키의 값을 재귀적으로 치환한다 (구조는 유지 — 프론트가 그대로 렌더)."""
     if isinstance(node, dict):
         out = {}
         for k, v in node.items():
-            if k in SENSITIVE_KEYS:
+            if _should_mask(k):
                 masked_keys.add(k)
                 out[k] = MASK_TEXT if isinstance(v, str) else {}
             else:
@@ -139,17 +147,16 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failures.append((path, str(e)))
             continue
-        if MASK_PROMPTS:
-            payload = mask(payload)
+        payload = mask(payload)
         total_bytes += write(path, payload)
         total_files += 1
 
     print(f"스냅샷 {total_files}개 파일, {total_bytes / 1024:.0f} KB → {OUT_DIR}")
-    if MASK_PROMPTS:
-        print(f"마스킹된 필드: {', '.join(sorted(masked_keys)) or '없음'}"
-              " (SNAPSHOT_INCLUDE_PROMPTS=1 로 그대로 공개 가능)")
-    else:
-        print("경고: 시스템 프롬프트/PII 매핑이 마스킹 없이 포함되었습니다.")
+    print(f"마스킹된 필드: {', '.join(sorted(masked_keys)) or '없음'}")
+    if not MASK_PROMPTS:
+        print("  시스템 프롬프트/유저 메시지가 그대로 공개됩니다 (SNAPSHOT_INCLUDE_PROMPTS=1)")
+    if not MASK_PII:
+        print("  경고: PII 매핑([PERSON_1] → 실명)이 그대로 공개됩니다 (SNAPSHOT_INCLUDE_PII=1)")
     if failures:
         print(f"\n실패 {len(failures)}건:")
         for path, err in failures:

@@ -24,16 +24,23 @@ cd backend && python scripts/snapshot_static.py   # 터미널 2
 (`/api/history/abc` → `api-snapshot/history/abc.json`). 이 디렉터리는 저장소에 커밋합니다 —
 Cloudflare Pages 는 백엔드에 접근할 수 없으므로 빌드 산출물에 들어 있어야 합니다.
 
-### 시스템 프롬프트 마스킹
+### 마스킹
 
-파이프라인 추적에는 시스템 프롬프트 전문과 PII 매핑이 들어 있습니다. 공개는 되돌릴 수 없으므로
-`system_prompt` / `user_message` / `pii_mapping` 값은 **기본적으로 마스킹**됩니다.
+파이프라인 추적에는 시스템 프롬프트 전문과 PII 매핑이 들어 있습니다. 성격이 달라 플래그가 나뉩니다.
 
-그대로 공개하려면:
+| 환경변수 | 대상 필드 | 기본 |
+|---|---|---|
+| `SNAPSHOT_INCLUDE_PROMPTS=1` | `system_prompt`, `user_message` | 마스킹 |
+| `SNAPSHOT_INCLUDE_PII=1` | `pii_mapping` (`[PERSON_1]` → 실명 대응표) | 마스킹 |
+
+**이 저장소는 프롬프트를 공개하는 설정으로 운영합니다.** 스냅샷을 다시 뜰 때 플래그를 빠뜨리면
+추적 패널이 마스킹된 상태로 되돌아가므로 주의하세요.
 
 ```bash
 SNAPSHOT_INCLUDE_PROMPTS=1 python scripts/snapshot_static.py
 ```
+
+PII 매핑은 mock 데이터라도 실명 대응표 형태라 계속 가립니다.
 
 ## 로컬에서 확인
 
