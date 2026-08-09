@@ -30,8 +30,8 @@ const { appCatalog, CATALOG_ID, SURFACE_ID } = await import('./catalog')
 const { ElementClickContext } = await import('../elementClickContext')
 
 const ROWS = [
-  { CATEGORY_NAME: '뷰티', CUST_NAME: '김민준', CUST_ID: 'C038', ORDER_CNT: 12 },
-  { CATEGORY_NAME: '가전', CUST_NAME: '박서준', CUST_ID: 'C071', ORDER_CNT: 4 },
+  { CATEGORY_NAME: '뷰티', CUST_NAME: '김민준', CUST_ID: 'C038', ORDER_CNT: 12, AMOUNT: 123456789, RATE: 5.3, YEAR: 2026 },
+  { CATEGORY_NAME: '가전', CUST_NAME: '박서준', CUST_ID: 'C071', ORDER_CNT: 4, AMOUNT: 9876543, RATE: 2.15, YEAR: 2025 },
 ]
 
 // 클라이언트 주입분 (A2uiRenderer 담당)
@@ -51,7 +51,15 @@ const serverMessages = [
         { id: 'briefing', component: 'BriefingCard', headline: '뷰티 12건으로 최다', bullets: ['뷰티 12건', '가전 4건'] },
         { id: 'filter', component: 'Filter', columns: ['CATEGORY_NAME'], rows: { path: '/rows' }, filters: { path: '/filters' } },
         { id: 'chart', component: 'Chart', chartType: 'bar', title: '카테고리별 주문', xField: 'CATEGORY_NAME', yField: 'ORDER_CNT', rows: { path: '/rows' }, filters: { path: '/filters' } },
-        { id: 'table', component: 'DataTable', title: '상세', rows: { path: '/rows' }, filters: { path: '/filters' } },
+        {
+          id: 'table', component: 'DataTable', title: '상세',
+          columnFormats: {
+            AMOUNT: { type: 'number', currency: '₩' },
+            ORDER_CNT: { type: 'number', unit: '건' },
+            RATE: { type: 'percent', decimals: 1 },
+          },
+          rows: { path: '/rows' }, filters: { path: '/filters' },
+        },
       ],
     },
   },
@@ -84,6 +92,13 @@ check('Chart option 빌드 (placeholder)', html().includes('a2ui-chart-ok'))
 check('DataTable 행 렌더', html().includes('가전'))
 check('Filter 옵션 렌더', document.querySelectorAll('option').length >= 3)
 check('엑셀 다운로드 버튼 (DataTable 전 기능)', html().includes('엑셀 다운로드'))
+
+// 숫자 표기 — columnFormats 지정분 + 미지정분 자동 처리
+check('columnFormats: 통화기호 + 천단위', html().includes('₩123,456,789'))
+check('columnFormats: 단위 접미', html().includes('12 건'))
+check('columnFormats: 백분율 소수 고정', html().includes('5.3%') && html().includes('2.2%'))
+check('자동 천단위 (미지정 컬럼)', html().includes('9,876,543'))
+check('연도는 천단위 구분 제외', html().includes('>2026<') && !html().includes('2,026'))
 
 // 클릭 드릴다운: 이름 셀 클릭 → "ID(이름)" 변환되어 콜백 수신
 const nameCell = Array.from(document.querySelectorAll('td')).find(td => td.textContent === '김민준')

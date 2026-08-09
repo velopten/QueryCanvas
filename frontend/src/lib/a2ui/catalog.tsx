@@ -22,7 +22,15 @@ import {
 import { createComponentImplementation, basicCatalog } from '@a2ui/react/v0_9'
 import { buildChartOption, type ChartProps } from '../chartOption'
 import { useElementClick } from '../elementClickContext'
-import { applyFilters, isClickableValue, transformClickValue, type DataRow } from '../dataDisplay'
+import {
+  applyFilters,
+  formatCellValue,
+  isClickableValue,
+  isNumericColumn,
+  transformClickValue,
+  type ColumnFormats,
+  type DataRow,
+} from '../dataDisplay'
 
 export const CATALOG_ID = 'query-canvas/v1'
 export const SURFACE_ID = 'result'
@@ -188,6 +196,12 @@ const DataTableApi = {
   schema: z.object({
     title: DynamicStringSchema.optional(),
     pageSize: z.number().optional(),
+    columnFormats: z.record(z.object({
+      type: z.enum(['number', 'percent', 'text']).optional(),
+      decimals: z.number().optional(),
+      unit: z.string().optional(),
+      currency: z.string().optional(),
+    })).optional(),
     rows: DynamicValueSchema,
     filters: DynamicValueSchema.optional(),
     loading: DynamicBooleanSchema.optional(),
@@ -217,6 +231,13 @@ const DataTable = createComponentImplementation(DataTableApi, ({ props }) => {
   const onElementClick = useElementClick()
 
   const columns = data.length > 0 ? Object.keys(data[0]) : (filtered.length > 0 ? Object.keys(filtered[0]) : [])
+
+  const columnFormats = props.columnFormats as ColumnFormats | undefined
+  // 숫자 컬럼은 우측 정렬 — 자릿수가 맞아야 큰 수 비교가 읽힌다
+  const numericColumns = useMemo(
+    () => new Set(columns.filter(col => columnFormats?.[col]?.type !== 'text' && isNumericColumn(filtered, col))),
+    [columns, filtered, columnFormats],
+  )
 
   const sorted = useMemo(() => {
     if (!sortField) return data
@@ -364,7 +385,7 @@ const DataTable = createComponentImplementation(DataTableApi, ({ props }) => {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               {columns.map(col => (
-                <th key={col} onClick={() => toggleSort(col)} className="px-4 py-2.5 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap">
+                <th key={col} onClick={() => toggleSort(col)} className={`px-4 py-2.5 font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap ${numericColumns.has(col) ? 'text-right' : 'text-left'}`}>
                   {col}{sortField === col && <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
                 </th>
               ))}
@@ -380,9 +401,9 @@ const DataTable = createComponentImplementation(DataTableApi, ({ props }) => {
                     <td
                       key={col}
                       onClick={clickable ? () => onElementClick!(transformClickValue(String(val), col, row), col) : undefined}
-                      className={`px-4 py-2 whitespace-nowrap ${clickable ? 'text-accent-strong cursor-pointer hover:underline hover:bg-accent-soft' : 'text-gray-800'}`}
+                      className={`px-4 py-2 whitespace-nowrap ${numericColumns.has(col) ? 'text-right tabular-nums' : ''} ${clickable ? 'text-accent-strong cursor-pointer hover:underline hover:bg-accent-soft' : 'text-gray-800'}`}
                     >
-                      {String(val ?? '')}
+                      {formatCellValue(val, col, columnFormats)}
                     </td>
                   )
                 })}

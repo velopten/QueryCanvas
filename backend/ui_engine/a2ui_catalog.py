@@ -99,6 +99,21 @@ _CUSTOM_COMPONENTS: dict[str, dict[str, Any]] = {
     "DataTable": _component("DataTable", {
         "title": {"$ref": f"{_CT}/DynamicString"},
         "pageSize": {"type": "number"},
+        "columnFormats": {
+            "type": "object",
+            "description": "per-column number display, keyed by exact column name. omit columns that need no formatting",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "enum": ["number", "percent", "text"],
+                             "description": "number=thousands separator, percent=append % (value is already 0-100), text=leave as-is"},
+                    "decimals": {"type": "number", "description": "fixed fraction digits"},
+                    "unit": {"type": "string", "description": "suffix after the number"},
+                    "currency": {"type": "string", "description": "symbol before the number"},
+                },
+                "additionalProperties": False,
+            },
+        },
         "rows": {"$ref": f"{_CT}/DynamicValue", "description": "data binding — always {\"path\": \"/rows\"}"},
         "filters": {"$ref": f"{_CT}/DynamicValue", "description": "optional filter binding — {\"path\": \"/filters\"}"},
         "loading": {"$ref": f"{_CT}/DynamicBoolean", "description": "client-managed loading state — do not set"},

@@ -212,9 +212,11 @@ async def query_stream(req: QueryRequest):
         from ui_engine.ui_decision import plan_layout, build_skeleton_messages
         _plan = plan_layout(req.question, tracer)
         skeleton_msgs = build_skeleton_messages(_plan)
-        yield sse_event("a2ui", {"messages": skeleton_msgs})
+        # step(ui_layout) 을 a2ui 보다 먼저 — 프론트는 이 스텝에서 화면을 교체한다(리셋).
+        # 순서가 뒤바뀌면 방금 보낸 스켈레톤이 리셋에 지워져 스테이지②까지 빈 화면이 된다.
         yield sse_event("step", {"phase": "ui_layout", "status": "done",
-                                 "message": f"화면 골격 생성 — {_plan.get('title', '')}"})
+                                 "message": f"UI 결정 — {_plan.get('title', '')}"})
+        yield sse_event("a2ui", {"messages": skeleton_msgs})
 
         # 신규 질의 보강(clarify): 조회 대상이 불명확하면 짧게 되묻고 종료 (보수적 — 대부분 통과)
         if not req.parent_history_id and not req.skip_clarify:
@@ -397,12 +399,9 @@ async def query_stream(req: QueryRequest):
             return
         if vres2.resolved:
             sql = vres2.sql
+            # 내부 SQL 변환이라 단계로 노출하지 않는다 — 갱신된 SQL 과 trace 로만 확인된다
             tracer.log_step("vv_resolved", {"resolved": vres2.resolved})
             yield sse_event("sql", {"sql": sql, "vv_resolved": True, "resolved": vres2.resolved})
-            yield sse_event("step", {
-                "phase": "vv_resolve", "status": "done",
-                "message": f"가상 view {len(vres2.resolved)}건 inline 변환: {', '.join(vres2.resolved)}",
-            })
 
         # Step 3: SQL 실행 (오류 시 최대 3회 자동 수정 재시도)
         from text_to_sql.sql_fixer import fix_sql
@@ -473,14 +472,8 @@ async def query_stream(req: QueryRequest):
         yield sse_event("data", {"data": data, "row_count": len(data)})
         yield sse_event("step", {"phase": "sql_execution", "status": "done", "message": f"{len(data)}건 조회 완료"})
 
-        # Step 3.5: 개인정보 난독화
-        from ui_engine.anonymizer import get_pii_columns
-        pii_cols = get_pii_columns(data)
-        if pii_cols:
-            yield sse_event("step", {"phase": "anonymize", "status": "running", "message": f"개인정보 보호 처리 중... ({', '.join(pii_cols)})"})
-            yield sse_event("step", {"phase": "anonymize", "status": "done", "message": f"개인정보 컬럼 {len(pii_cols)}개 보호 처리 완료"})
-        else:
-            yield sse_event("step", {"phase": "anonymize", "status": "done", "message": "개인정보 컬럼 없음 — 안전"})
+        # rows 본문이 LLM 을 거치지 않게 되면서 이 자리의 개인정보 단계는 표시 전용 잔재가 됐다.
+        # 실제 마스킹은 ui_decision 이 LLM 에 넘길 샘플을 만들 때 anonymizer 가 수행한다.
 
         # Step 4: UI 결정 (스테이지②) — A2UI v0.9 메시지 스트리밍, 스켈레톤 갱신
         from ui_engine.ui_decision import decide_ui_stream

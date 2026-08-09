@@ -76,6 +76,14 @@ Chart는 최대 1개만 만드세요.
 필터 추가 권장 케이스: 분류/구분/유형/지역 등 카테고리 컬럼이 있는 데이터
 필터 불필요 케이스: 행이 적거나(<10) 모두 unique한 데이터, 시계열 데이터, 단일 값 표시(gauge)
 
+## 숫자 표기 (DataTable.columnFormats)
+숫자 컬럼은 columnFormats로 단위를 붙여야 읽힌다. 컬럼명을 키로, 필요한 컬럼만 지정.
+- type: number(천단위 구분) / percent(% 접미 — 값이 이미 0~100일 때만) / text(포맷 해제)
+- decimals: 소수 자릿수 고정, unit: 숫자 뒤 단위, currency: 숫자 앞 통화기호
+- 예: "columnFormats":{"매출액":{"type":"number","currency":"₩"},"건수":{"type":"number","unit":"건"},"비율":{"type":"percent","decimals":1}}
+- 지정하지 않아도 큰 숫자는 자동으로 천단위 구분됨 — 단위/비율 의미가 있는 컬럼에만 쓸 것
+- 식별자·코드·연도 컬럼에는 쓰지 말 것 (필요하면 type:"text")
+
 ## BriefingCard 작성 규칙
 - headline: 핵심 한 줄 (15자 내외). 예: "3개 분류 월별 집계"
 - bullets: 객관적 수치 포인트 (각 30자 이내, 최대 5개) — 문자열 배열 리터럴

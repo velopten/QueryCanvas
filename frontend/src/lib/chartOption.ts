@@ -24,6 +24,28 @@ export interface ChartProps {
 
 type Row = Record<string, unknown>
 
+// ── 숫자 축 표기 ─────────────────────────────────────────────────────────────
+// 축 눈금은 자리수가 길면 겹치므로 축약(1.2억), 툴팁은 정확한 값을 천단위로 보여준다.
+// 임계값 10000은 dataDisplay 의 자동 포맷 기준과 맞춘다 — 연도 등 4자리는 그대로.
+const COMPACT_MIN = 10000
+
+function formatAxisNumber(v: number): string {
+  if (!Number.isFinite(v)) return String(v)
+  return Math.abs(v) >= COMPACT_MIN
+    ? new Intl.NumberFormat('ko-KR', { notation: 'compact', maximumFractionDigits: 1 }).format(v)
+    : new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 20 }).format(v)
+}
+
+const VALUE_AXIS = { type: 'value' as const, axisLabel: { formatter: formatAxisNumber } }
+
+const NUMBER_TOOLTIP = {
+  trigger: 'axis' as const,
+  valueFormatter: (v: unknown) =>
+    typeof v === 'number' && Number.isFinite(v)
+      ? new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 20 }).format(v)
+      : String(v ?? ''),
+}
+
 /**
  * 차트용 데이터를 정규화한다.
  * - yField가 데이터에 없거나 모든 값이 0/NaN이면 xField 기준 카운트로 자동 집계
@@ -91,9 +113,9 @@ function bar(data: Row[], p: ChartProps): EChartsOption | null {
   if (p.highlightField && typeof p.highlightThreshold === 'number') {
     const h = buildHighlightSeries(rows, yField, p.highlightField, p.highlightThreshold)
     return {
-      tooltip: { trigger: 'axis' },
+      tooltip: NUMBER_TOOLTIP,
       xAxis: { type: 'category', data: categories, name: p.xLabel ?? undefined },
-      yAxis: { type: 'value', name: p.yLabel ?? undefined },
+      yAxis: { ...VALUE_AXIS, name: p.yLabel ?? undefined },
       series: [
         { name: p.yLabel ?? yField, type: 'bar', data: h.normal, itemStyle: { color: COLORS[0] } },
         { name: '주의', type: 'bar', data: h.highlighted, itemStyle: { color: HIGHLIGHT_COLOR } },
@@ -102,9 +124,9 @@ function bar(data: Row[], p: ChartProps): EChartsOption | null {
   }
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: NUMBER_TOOLTIP,
     xAxis: { type: 'category', data: categories, name: p.xLabel ?? undefined },
-    yAxis: { type: 'value', name: p.yLabel ?? undefined },
+    yAxis: { ...VALUE_AXIS, name: p.yLabel ?? undefined },
     series: [{
       name: p.yLabel ?? yField,
       type: 'bar',
@@ -123,10 +145,10 @@ function line(data: Row[], p: ChartProps): EChartsOption | null {
     const categories = data.map(row => String(row[xField]))
     const seriesNames = [...new Set(data.map(row => String(row[p.seriesField!])))]
     return {
-      tooltip: { trigger: 'axis' },
+      tooltip: NUMBER_TOOLTIP,
       legend: { data: seriesNames },
       xAxis: { type: 'category', data: categories, name: p.xLabel ?? undefined },
-      yAxis: { type: 'value', name: p.yLabel ?? undefined },
+      yAxis: { ...VALUE_AXIS, name: p.yLabel ?? undefined },
       series: seriesNames.map((name, i) => ({
         name,
         type: 'line',
@@ -143,9 +165,9 @@ function line(data: Row[], p: ChartProps): EChartsOption | null {
   const categories = rows.map(row => String(row[xField]))
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: NUMBER_TOOLTIP,
     xAxis: { type: 'category', data: categories, name: p.xLabel ?? undefined },
-    yAxis: { type: 'value', name: p.yLabel ?? undefined },
+    yAxis: { ...VALUE_AXIS, name: p.yLabel ?? undefined },
     series: [{
       name: p.yLabel ?? yField,
       type: 'line',

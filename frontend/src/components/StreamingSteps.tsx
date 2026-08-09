@@ -12,18 +12,27 @@ const PHASE_META: Record<string, { icon: string; label: string }> = {
   cache_lookup: { icon: '0', label: '캐시 확인' },
   vector_search: { icon: '1', label: '벡터 검색' },
   sql_generation: { icon: '2', label: 'SQL 생성' },
+  sql_validate: { icon: '✓', label: 'SQL 검증' },
+  vv_resolve: { icon: '⇱', label: '가상 view 전개' },
   sql_fix: { icon: '!', label: 'SQL 수정' },
   sql_execution: { icon: '3', label: 'SQL 실행' },
-  anonymize: { icon: '🔒', label: '개인정보 보호' },
   ui_decision: { icon: '4', label: '시각화 결정' },
 }
 
+/**
+ * 표시하지 않는 단계 — 이벤트 자체는 계속 흘려야 한다.
+ * ui_layout 은 QueryPage 가 화면 교체 시점을 잡는 트리거라 제거하면 안 되고,
+ * 사용자에겐 결과가 바로 보이므로 칩으로 알릴 필요가 없다.
+ */
+const HIDDEN_PHASES = new Set(['ui_layout'])
+
 export default function StreamingSteps({ steps }: { steps: StepState[] }) {
-  if (steps.length === 0) return null
+  const visible = steps.filter(step => !HIDDEN_PHASES.has(step.phase))
+  if (visible.length === 0) return null
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
-      {steps.map((step, i) => {
+      {visible.map((step, i) => {
         const meta = PHASE_META[step.phase] || { icon: '?', label: step.phase }
         const isRunning = step.status === 'running'
         const isDone = step.status === 'done'
