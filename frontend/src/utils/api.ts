@@ -425,6 +425,16 @@ export async function getTraces() {
   return data
 }
 
+export async function getTraceDetail(traceId: string) {
+  const { data } = await api.get(`/admin/traces/${traceId}`)
+  return data
+}
+
+export async function getFeedbackStats() {
+  const { data } = await api.get('/admin/feedback-stats')
+  return data
+}
+
 export async function getLogs(limit = 50) {
   const { data } = await api.get(`/admin/logs?limit=${limit}`)
   return data

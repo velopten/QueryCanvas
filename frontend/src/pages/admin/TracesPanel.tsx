@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TraceStepItem } from '../../components/TraceViewer'
-import { getTraces } from '../../utils/api'
+import { getTraces, getTraceDetail, getFeedbackStats } from '../../utils/api'
 import { Button, Badge, EmptyState } from '../../components/ui'
 import type { QueryTrace } from '../../types'
 
@@ -18,7 +18,7 @@ export default function TracesPanel() {
 
   const fetchData = () => {
     getTraces().then(d => { setTraces(d.traces); setLoading(false) })
-    fetch('/api/admin/feedback-stats').then(r => r.json()).then(setStats)
+    getFeedbackStats().then(setStats).catch(() => {})
   }
   const load = () => { setLoading(true); fetchData() }
   useEffect(fetchData, [])
@@ -26,10 +26,12 @@ export default function TracesPanel() {
   const handleSelect = async (traceId: string) => {
     if (selectedTrace?.trace_id === traceId) { setSelectedTrace(null); return }
     try {
-      const res = await fetch(`/api/admin/traces/${traceId}`)
-      const data = await res.json()
+      const data = await getTraceDetail(traceId)
       setSelectedTrace({ trace_id: data.trace_id, question: data.question, started_at: data.created_at, steps: data.steps })
-    } catch { /* ignore */ }
+    } catch (e) {
+      // 조용히 삼키면 "눌러도 아무 일 없음" 으로 보인다 — 원인을 콘솔에 남긴다
+      console.error('추적 상세를 불러오지 못했습니다', e)
+    }
   }
 
   const feedbackBadge = (fb: number | null) => {
