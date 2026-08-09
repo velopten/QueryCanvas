@@ -11,10 +11,9 @@
 
 ## 데모 영상
 
-https://github.com/velopten/QueryCanvas/raw/main/docs/demo.mp4
+https://github.com/user-attachments/assets/93d3ccb0-ff91-46ca-8959-007d54753766
 
 자연어 질문 → 화면 자동 생성 → 꼬리질문 → 화면 저장까지의 실제 동작입니다.
-재생되지 않으면 [docs/demo.mp4](docs/demo.mp4) 를 직접 여세요.
 
 ## 주요 기능
 
