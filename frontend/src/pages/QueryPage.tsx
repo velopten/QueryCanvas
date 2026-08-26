@@ -123,14 +123,107 @@ export default function QueryPage() {
   /** 파이프라인 확정(스켈레톤 도착) 시점에 화면을 리셋하기 위한 대기 질문 */
   const pendingResetRef = useRef<string | null>(null)
 
-  const mergeStep = (typedStep: StepState) => {
+  const mergeStep = useCallback((typedStep: StepState) => {
     setStream(prev => {
       const idx = prev.steps.findIndex(s => s.phase === typedStep.phase)
       const newSteps = [...prev.steps]
       if (idx >= 0) newSteps[idx] = typedStep; else newSteps.push(typedStep)
       return { ...prev, steps: newSteps }
     })
-  }
+  }, [])
+
+  /** 정적 공개본에서 캡처된 질문 실행 과정과 결과를 순서대로 재생한다. */
+  const replayDemoQuery = useCallback((question: string) => {
+    abortRef.current?.()
+    let cancelled = false
+    abortRef.current = () => { cancelled = true }
+
+    setLoading(true)
+    setSuggestions([])
+    setClarify(null)
+    setActiveHistoryId(null)
+    setActiveViewId(null)
+    setDemoReplay(null)
+    setParentInfo(null)
+    setTailMessages([])
+    setConversations([])
+    setStream(prev => ({ ...INITIAL_STREAM, question, epoch: prev.epoch + 1 }))
+
+    const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
+    const normalize = (value: string) => value.replace(/[\s?!.。,]/g, '').toLowerCase()
+
+    ;(async () => {
+      const entries = await getHistoryList()
+      const normalizedQuestion = normalize(question)
+      const entry = entries.find(item => normalize(item.question) === normalizedQuestion)
+        || entries.find(item => {
+          const candidate = normalize(item.question)
+          return candidate.includes(normalizedQuestion) || normalizedQuestion.includes(candidate)
+        })
+
+      if (!entry) {
+        if (cancelled) return
+        mergeStep({ phase: 'routing', status: 'error', message: '저장된 데모 질문과 일치하지 않음' })
+        setStream(prev => ({
+          ...prev,
+          error: '이 공개본에서는 위 예시 질문과 저장된 질문의 실행 과정을 재생할 수 있습니다.',
+          done: true,
+        }))
+        setLoading(false)
+        return
+      }
+
+      const detail = await getHistoryDetail(entry.id)
+      if (cancelled) return
+
+      const phases: Array<{ phase: string; running: string; done: string; delay: number }> = [
+        { phase: 'routing', running: '질문 의도와 조회 유형을 분석하는 중', done: '데이터 조회 질문으로 분류', delay: 320 },
+        { phase: 'cache_lookup', running: '유사 질문의 SQL 캐시를 확인하는 중', done: '캐시 확인 완료', delay: 340 },
+        { phase: 'vector_search', running: '관련 스키마와 도메인 지식을 검색하는 중', done: '관련 컨텍스트 검색 완료', delay: 480 },
+        { phase: 'sql_generation', running: '질문에 맞는 SQL을 생성하는 중', done: 'SQL 생성 완료', delay: 620 },
+        { phase: 'sql_validate', running: 'SQL 문법과 접근 범위를 검증하는 중', done: 'SQL 검증 통과', delay: 360 },
+      ]
+      if (detail.sql?.includes('VV_SALES_MONTHLY')) {
+        phases.push({ phase: 'vv_resolve', running: '가상 View를 실제 SQL로 전개하는 중', done: '가상 View 전개 완료', delay: 360 })
+      }
+      phases.push(
+        { phase: 'sql_execution', running: '데이터베이스에서 SQL을 실행하는 중', done: `${detail.data?.length ?? 0}건 조회 완료`, delay: 460 },
+        { phase: 'ui_decision', running: '결과에 맞는 시각화를 구성하는 중', done: '시각화 구성 완료', delay: 620 },
+      )
+
+      for (const phase of phases) {
+        if (cancelled) return
+        mergeStep({ phase: phase.phase, status: 'running', message: phase.running })
+        await wait(phase.delay)
+        if (cancelled) return
+        mergeStep({ phase: phase.phase, status: 'done', message: phase.done })
+
+        if (phase.phase === 'sql_generation') {
+          setStream(prev => ({ ...prev, sql: detail.sql }))
+        } else if (phase.phase === 'sql_execution') {
+          setStream(prev => ({ ...prev, data: detail.data || [] }))
+        }
+      }
+
+      if (cancelled) return
+      setDemoReplay({
+        replay: true,
+        captured_at: detail.updated_at,
+        action: 'query_pipeline_replay',
+      })
+      setStream(prev => ({
+        ...prev,
+        uiSpec: detail.ui_spec as unknown as UiSpec,
+        done: true,
+      }))
+      setActiveHistoryId(detail.id)
+      setLoading(false)
+    })().catch(() => {
+      if (cancelled) return
+      setStream(prev => ({ ...prev, error: '저장된 데모 실행 결과를 불러오지 못했습니다.', done: true }))
+      setLoading(false)
+    })
+  }, [mergeStep])
 
   /** 현재 화면을 대화 기록으로 넘기고 새 질의 화면으로 리셋 (스켈레톤 도착 시 호출) */
   const archiveAndReset = useCallback((question: string) => {
@@ -157,6 +250,10 @@ export default function QueryPage() {
    * 화면 리셋을 스켈레톤 도착(ui_layout)까지 미룬다 — tail/clarify면 현재 화면 유지.
    */
   const submitChat = useCallback((question: string, extra?: Partial<QueryContext>) => {
+    if (IS_STATIC) {
+      replayDemoQuery(question)
+      return
+    }
     const cur = streamRef.current
     const prevContext: QueryContext = { ...extra }
     if (cur.sql) {
@@ -206,7 +303,7 @@ export default function QueryPage() {
     }, Object.keys(prevContext).length > 0 ? prevContext : undefined)
 
     abortRef.current = abort
-  }, [activeHistoryId, refreshHistory, archiveAndReset])
+  }, [activeHistoryId, refreshHistory, archiveAndReset, replayDemoQuery, mergeStep])
 
   /** UI 수정 모드 — 현재 화면을 재조회 없이 증분 갱신 (같은 epoch → 리마운트 없음) */
   const submitUiEdit = useCallback((instruction: string) => {
@@ -227,7 +324,7 @@ export default function QueryPage() {
       },
     })
     abortRef.current = abort
-  }, [activeHistoryId])
+  }, [activeHistoryId, mergeStep])
 
   const handleQuery = useCallback((question: string, mode: InputMode) => {
     if (mode === 'ui_edit') {
@@ -380,6 +477,9 @@ export default function QueryPage() {
   }, [stream.uiSpec, stream.question])
 
   const isActive = conversations.length > 0 || loading || stream.sql || stream.data || stream.uiSpec || stream.error || !!clarify
+  const visibleStarterQuestions = IS_STATIC && historyEntries.length > 0
+    ? historyEntries.map(entry => entry.question)
+    : starterQuestions
   // UI 수정 모드 진입 조건: 완료된 A2UI 화면 + 히스토리 존재
   const hasScreen = !!(activeHistoryId && stream.done && (stream.a2uiMessages.length > 0 || isA2uiSpec(stream.uiSpec)))
 
@@ -411,7 +511,7 @@ export default function QueryPage() {
               <h2 className="text-lg font-semibold text-gray-800 mb-1">무엇이든 질문하세요</h2>
               <p className="text-sm text-gray-500 mb-6 max-w-md">자연어로 데이터를 조회하고 시각화할 수 있습니다</p>
               <div className="grid grid-cols-2 gap-2 max-w-lg w-full">
-                {starterQuestions.map(q => (
+                {visibleStarterQuestions.map(q => (
                   <button key={q} onClick={() => handleQuery(q, 'chat')} className="text-left px-4 py-3 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
                     {q}
                   </button>
@@ -483,11 +583,23 @@ export default function QueryPage() {
 
                   {demoReplay && (
                     <div className="bg-cyan-50 border border-cyan-200 text-cyan-800 px-4 py-3 rounded-lg text-sm">
-                      <p className="font-medium">데모 재조회 결과를 재생했습니다</p>
-                      <p className="mt-1 text-xs text-cyan-700">
-                        실제 환경에서는 저장된 SQL만 다시 실행하고, 결과를 기존 화면 구성에 바인딩합니다. LLM은 다시 호출하지 않습니다.
-                        {' '}이 공개본은 {new Date(demoReplay.captured_at).toLocaleString('ko-KR')}에 실행해 저장한 결과입니다.
-                      </p>
+                      {demoReplay.action === 'query_pipeline_replay' ? (
+                        <>
+                          <p className="font-medium">실제 질문 실행 과정을 데모로 재생했습니다</p>
+                          <p className="mt-1 text-xs text-cyan-700">
+                            실제 환경의 질문 분석, 지식 검색, SQL 생성·검증·실행, 시각화 구성 단계를 순서대로 보여줍니다.
+                            {' '}결과는 {new Date(demoReplay.captured_at).toLocaleString('ko-KR')}에 실행해 저장한 스냅샷입니다.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">데모 재조회 결과를 재생했습니다</p>
+                          <p className="mt-1 text-xs text-cyan-700">
+                            실제 환경에서는 저장된 SQL만 다시 실행하고, 결과를 기존 화면 구성에 바인딩합니다. LLM은 다시 호출하지 않습니다.
+                            {' '}이 공개본은 {new Date(demoReplay.captured_at).toLocaleString('ko-KR')}에 실행해 저장한 결과입니다.
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -550,7 +662,7 @@ export default function QueryPage() {
                   {/* 화면 저장 + Feedback */}
                   {stream.done && stream.data && (
                     <div className="flex items-center justify-end gap-3 animate-in fade-in">
-                      {activeHistoryId && !activeViewId && (
+                      {!IS_STATIC && activeHistoryId && !activeViewId && (
                         viewSaveState === 'saved' ? (
                           <span className="text-xs text-emerald-600">내 화면에 저장됨 — 사이드바에서 언제든 다시 열 수 있습니다</span>
                         ) : (
@@ -593,13 +705,18 @@ export default function QueryPage() {
           )}
         </div>
 
-        {IS_STATIC ? (
-          <div className="px-4 py-3 text-center text-sm text-gray-500 border-t border-gray-200 bg-gray-50">
-            읽기 전용 공개본입니다 — 지난 대화를 보거나, 실제 실행 시 저장한 재조회 결과를 재생할 수 있습니다.
+        {IS_STATIC && (
+          <div className="px-4 py-2 text-center text-xs text-cyan-700 border-t border-cyan-100 bg-cyan-50">
+            공개 데모 — 예시 질문을 입력하면 실제 실행 시 저장한 파이프라인과 결과를 재생합니다.
           </div>
-        ) : (
-          <ChatInput ref={chatInputRef} onSubmit={handleQuery} loading={loading} suggestions={suggestions} hasScreen={hasScreen} />
         )}
+        <ChatInput
+          ref={chatInputRef}
+          onSubmit={handleQuery}
+          loading={loading}
+          suggestions={suggestions}
+          hasScreen={hasScreen && !IS_STATIC}
+        />
       </div>
     </div>
   )
