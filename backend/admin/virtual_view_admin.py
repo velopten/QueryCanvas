@@ -56,7 +56,9 @@ def test_run(db, view_id: str, params: dict) -> list[dict]:
             continue
         sql = sql.replace(f":{k}", f"'{str(val).replace(chr(39), chr(39)+chr(39))}'")
     if "FETCH FIRST" not in sql.upper() and "LIMIT" not in sql.upper():
-        sql = sql.rstrip().rstrip(";") + " FETCH FIRST 100 ROWS ONLY"
+        from config import SQL_DIALECT
+        limit_clause = " LIMIT 100" if SQL_DIALECT == "sqlite" else " FETCH FIRST 100 ROWS ONLY"
+        sql = sql.rstrip().rstrip(";") + limit_clause
     return db.execute(sql)
 
 

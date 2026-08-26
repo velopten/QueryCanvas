@@ -13,6 +13,8 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
    * 정적 공개 모드에서는 자동으로 비활성화된다 — 기능이 있다는 건 보이되 실행은 막는다.
    */
   mutating?: boolean
+  /** 정적 공개본에서 실제 실행 대신 빌드 시 캡처한 결과를 재생하는 동작. */
+  demoReplay?: boolean
 }
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -29,11 +31,16 @@ const SIZE: Record<ButtonSize, string> = {
 }
 
 /** 프로젝트 공통 버튼. busy=true 면 스피너와 함께 비활성화된다. */
-export default function Button({ variant = 'primary', size = 'sm', busy, mutating, disabled, children, className = '', title, ...rest }: Props) {
-  const blocked = mutating && IS_STATIC
+export default function Button({ variant = 'primary', size = 'sm', busy, mutating, demoReplay, disabled, children, className = '', title, ...rest }: Props) {
+  const blocked = mutating && IS_STATIC && !demoReplay
+  const staticTitle = blocked
+    ? '읽기 전용으로 공개된 화면입니다'
+    : demoReplay && IS_STATIC
+      ? '실제 실행 시 저장한 데모 결과를 재생합니다'
+      : title
   return (
     <button
-      title={blocked ? '읽기 전용으로 공개된 화면입니다' : title}
+      title={staticTitle}
       disabled={disabled || busy || blocked}
       className={`inline-flex items-center justify-center gap-1.5 font-medium transition-colors
         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent

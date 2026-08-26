@@ -7,6 +7,22 @@ import axios from 'axios'
  */
 export const IS_STATIC = import.meta.env.VITE_STATIC === '1'
 
+export interface DemoReplayMeta {
+  replay: true
+  captured_at: string
+  action: string
+  input?: Record<string, unknown>
+}
+
+export interface DemoInfo {
+  captured_at: string
+  vector_search_query: string
+  cache_search_query: string
+  vector_search_available: boolean
+  cache_search_available: boolean
+  virtual_view_test_ids: string[]
+}
+
 /** 정적 모드에서 차단된 동작임을 알리는 오류 — UI 가 문구를 그대로 보여준다. */
 export class StaticModeError extends Error {
   constructor() {
@@ -167,6 +183,12 @@ export async function getMeta(): Promise<{ domain: string; domain_label: string;
   return data
 }
 
+export async function getDemoInfo(): Promise<DemoInfo | null> {
+  if (!IS_STATIC) return null
+  const { data } = await api.get('/demo')
+  return data as DemoInfo
+}
+
 // History APIs
 export interface HistoryEntry {
   id: string
@@ -208,6 +230,20 @@ export async function deleteHistory(id: string) {
 }
 
 export async function rerunHistory(id: string) {
+  if (IS_STATIC) {
+    const detail = await getHistoryDetail(id)
+    return {
+      sql: detail.sql,
+      data: detail.data || [],
+      ui_spec: detail.ui_spec,
+      history_id: detail.id,
+      _demo: {
+        replay: true,
+        captured_at: detail.updated_at,
+        action: 'history_rerun',
+      } satisfies DemoReplayMeta,
+    }
+  }
   const { data } = await api.post(`/history/${id}/rerun`)
   return data
 }
@@ -276,6 +312,7 @@ export interface SavedViewOpenResult {
   sql: string
   data: Record<string, unknown>[]
   ui_spec: Record<string, unknown>
+  _demo?: DemoReplayMeta
 }
 
 export async function createSavedView(historyId: string, name?: string) {
@@ -289,8 +326,34 @@ export async function listSavedViews(): Promise<SavedView[]> {
 }
 
 export async function openSavedView(viewId: string): Promise<SavedViewOpenResult> {
-  const { data } = await api.post(`/views/${viewId}/open`)
-  return data
+  if (!IS_STATIC) {
+    const { data } = await api.post(`/views/${viewId}/open`)
+    return data
+  }
+  try {
+    const { data } = await api.get(`/views/${viewId}/open`)
+    return data
+  } catch {
+    // 예전 스냅샷 호환: 별도의 재조회 fixture가 없으면
+    // 동일 질문의 실제 히스토리 결과를 기존 화면에 바인딩해 재생한다.
+    const view = (await listSavedViews()).find(item => item.id === viewId)
+    const history = view
+      ? (await getHistoryList()).find(item => item.question === view.question)
+      : undefined
+    if (!view || !history) throw new Error('저장된 재조회 데모 결과가 없습니다.')
+    const detail = await getHistoryDetail(history.id)
+    return {
+      view: { id: view.id, name: view.name, question: view.question, liveness_note: view.liveness_note },
+      sql: detail.sql || '',
+      data: detail.data || [],
+      ui_spec: detail.ui_spec || {},
+      _demo: {
+        replay: true,
+        captured_at: detail.updated_at,
+        action: 'saved_view_open_legacy_snapshot',
+      },
+    }
+  }
 }
 
 export async function renameSavedView(viewId: string, name: string) {
@@ -304,12 +367,16 @@ export async function deleteSavedView(viewId: string) {
 }
 
 export async function vectorSearchTest(query: string) {
-  const { data } = await api.post('/admin/vector-search-test', { query })
+  const { data } = IS_STATIC
+    ? await api.get('/admin/vector-search-test')
+    : await api.post('/admin/vector-search-test', { query })
   return data
 }
 
 export async function cacheSearchTest(query: string) {
-  const { data } = await api.post('/admin/cache-search-test', { query })
+  const { data } = IS_STATIC
+    ? await api.get('/admin/cache-search-test')
+    : await api.post('/admin/cache-search-test', { query })
   return data
 }
 
@@ -464,8 +531,10 @@ export async function saveVirtualView(id: string, payload: { meta?: Record<strin
   return data
 }
 export async function testRunVirtualView(id: string, params: Record<string, unknown>) {
-  const { data } = await api.post(`/admin/virtual-views/${id}/test-run`, { params })
-  return data as { row_count: number; rows: Record<string, unknown>[] }
+  const { data } = IS_STATIC
+    ? await api.get(`/admin/virtual-views/${id}/test-run`)
+    : await api.post(`/admin/virtual-views/${id}/test-run`, { params })
+  return data as { row_count: number; rows: Record<string, unknown>[]; _demo?: DemoReplayMeta }
 }
 export async function reindexVirtualViews() {
   const { data } = await api.post('/admin/virtual-views/reindex')
@@ -567,6 +636,36 @@ export function runEvalStream(
   onError: (msg: string) => void,
   options?: { limit?: number; case?: string },
 ): () => void {
+  if (IS_STATIC) {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const listed = await listEvalResults()
+        const latest = listed.items[0]
+        if (!latest) {
+          onError('저장된 평가 실행 결과가 없습니다. 스냅샷을 만들기 전 실제 평가를 한 번 실행해 주세요.')
+          return
+        }
+        const detail = await getEvalResult(latest.file)
+        if (cancelled) return
+        onProgress({ phase: 'start', config: detail.config, total: detail.results.length })
+        for (let i = 0; i < detail.results.length; i += 1) {
+          if (cancelled) return
+          const result = detail.results[i]
+          onProgress({ phase: 'case_start', index: i + 1, total: detail.results.length, id: result.id, question: result.question })
+          await new Promise(resolve => setTimeout(resolve, 120))
+          if (cancelled) return
+          onProgress({ phase: 'case_done', index: i + 1, total: detail.results.length, result })
+        }
+        if (cancelled) return
+        onProgress({ phase: 'summary', summary: detail.summary, file: latest.file })
+        onDone(latest.file)
+      } catch (err) {
+        if (!cancelled) onError((err as Error).message || '데모 평가 결과를 불러오지 못했습니다.')
+      }
+    })()
+    return () => { cancelled = true }
+  }
   return openSseStream(
     '/api/admin/eval/run/stream',
     {

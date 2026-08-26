@@ -16,6 +16,7 @@ const PHASE_META: Record<string, { icon: string; label: string }> = {
   vv_resolve: { icon: '⇱', label: '가상 view 전개' },
   sql_fix: { icon: '!', label: 'SQL 수정' },
   sql_execution: { icon: '3', label: 'SQL 실행' },
+  data_binding: { icon: '↻', label: '화면 바인딩' },
   ui_decision: { icon: '4', label: '시각화 결정' },
 }
 

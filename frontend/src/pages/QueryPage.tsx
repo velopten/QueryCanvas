@@ -10,7 +10,7 @@ import {
   queryStream, uiEditStream, rerunHistory, getMeta,
   getHistoryList, getHistoryDetail,
   createSavedView, listSavedViews, openSavedView, IS_STATIC,
-  type QueryContext, type HistoryEntry, type SavedView,
+  type QueryContext, type HistoryEntry, type SavedView, type DemoReplayMeta,
 } from '../utils/api'
 import type { UiSpec, A2uiMessage } from '../types'
 import { isA2uiSpec } from '../types'
@@ -77,6 +77,7 @@ export default function QueryPage() {
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null)
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
+  const [demoReplay, setDemoReplay] = useState<DemoReplayMeta | null>(null)
   const [viewSaveState, setViewSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [parentInfo, setParentInfo] = useState<{ id: string; title: string; question: string } | null>(null)
   const [suggestions, setSuggestions] = useState<SuggestedQuestion[]>([])
@@ -146,6 +147,7 @@ export default function QueryPage() {
     setTailMessages([])
     setClarify(null)
     setActiveViewId(null)
+    setDemoReplay(null)
     setViewSaveState('idle')
     setStream(prev => ({ ...INITIAL_STREAM, question, epoch: prev.epoch + 1 }))
   }, [])
@@ -247,6 +249,7 @@ export default function QueryPage() {
     setClarify(null)
     setActiveHistoryId(null)
     setActiveViewId(null)
+    setDemoReplay(null)
     setViewSaveState('idle')
     setParentInfo(null)
     setSuggestions([])
@@ -261,6 +264,7 @@ export default function QueryPage() {
     setClarify(null)
     setActiveHistoryId(entry.id)
     setActiveViewId(null)
+    setDemoReplay(null)
     setViewSaveState('idle')
     setParentInfo(null)
     setSuggestions([])
@@ -284,14 +288,20 @@ export default function QueryPage() {
 
   const handleRerun = async (entry: HistoryEntry) => {
     setActiveHistoryId(null)
+    setActiveViewId(null)
+    setDemoReplay(null)
     setConversations([])
     setSuggestions([])
     setLoading(true)
     setStream({ ...INITIAL_STREAM, question: `[재조회] ${entry.question}` })
     try {
       const res = await rerunHistory(entry.id)
+      setDemoReplay(res._demo || null)
       setStream(prev => ({
-        steps: [], sql: res.sql, data: res.data,
+        steps: res._demo ? [
+          { phase: 'sql_execution', status: 'done', message: '저장된 SQL 실행 결과 재생' },
+          { phase: 'data_binding', status: 'done', message: '저장된 화면에 결과 바인딩' },
+        ] : [], sql: res.sql, data: res.data,
         uiSpec: res.ui_spec as unknown as UiSpec, a2uiMessages: [], epoch: prev.epoch + 1,
         error: null, done: true, question: `[재조회] ${entry.question}`, traceId: null,
       }))
@@ -311,17 +321,27 @@ export default function QueryPage() {
     setClarify(null)
     setActiveHistoryId(null)
     setActiveViewId(view.id)
+    setDemoReplay(null)
     setViewSaveState('idle')
     setParentInfo(null)
     setSuggestions([])
     setTailMessages([])
     setConversations([])
     setLoading(true)
-    setStream(prev => ({ ...INITIAL_STREAM, question: `[내 화면] ${view.name}`, epoch: prev.epoch + 1 }))
+    setStream(prev => ({
+      ...INITIAL_STREAM,
+      question: `[내 화면] ${view.name}`,
+      steps: IS_STATIC ? [{ phase: 'sql_execution', status: 'running', message: '저장된 SQL로 현재 데이터 재조회' }] : [],
+      epoch: prev.epoch + 1,
+    }))
     try {
       const res = await openSavedView(view.id)
+      setDemoReplay(res._demo || null)
       setStream(prev => ({
-        steps: [], sql: res.sql, data: res.data,
+        steps: res._demo ? [
+          { phase: 'sql_execution', status: 'done', message: '저장된 SQL 실행 결과 재생' },
+          { phase: 'data_binding', status: 'done', message: '기존 화면 구성에 조회 결과 바인딩' },
+        ] : [], sql: res.sql, data: res.data,
         uiSpec: res.ui_spec as unknown as UiSpec, a2uiMessages: [], epoch: prev.epoch + 1,
         error: null, done: true, question: `[내 화면] ${view.name}`, traceId: null,
       }))
@@ -427,6 +447,7 @@ export default function QueryPage() {
                   <div className="flex justify-end">
                     <div className="bg-ink text-white px-4 py-2.5 rounded-2xl rounded-br-md max-w-lg text-sm">{turn.question}</div>
                   </div>
+
                   {turn.type === 'tail' ? (
                     <div className="flex gap-3 items-start">
                       <div className="w-7 h-7 bg-accent rounded-lg flex items-center justify-center shrink-0 mt-0.5">
@@ -459,6 +480,16 @@ export default function QueryPage() {
                   <div className="flex justify-end">
                     <div className="bg-ink text-white px-4 py-2.5 rounded-2xl rounded-br-md max-w-lg text-sm">{stream.question}</div>
                   </div>
+
+                  {demoReplay && (
+                    <div className="bg-cyan-50 border border-cyan-200 text-cyan-800 px-4 py-3 rounded-lg text-sm">
+                      <p className="font-medium">데모 재조회 결과를 재생했습니다</p>
+                      <p className="mt-1 text-xs text-cyan-700">
+                        실제 환경에서는 저장된 SQL만 다시 실행하고, 결과를 기존 화면 구성에 바인딩합니다. LLM은 다시 호출하지 않습니다.
+                        {' '}이 공개본은 {new Date(demoReplay.captured_at).toLocaleString('ko-KR')}에 실행해 저장한 결과입니다.
+                      </p>
+                    </div>
+                  )}
 
                   {stream.steps.length > 0 && (
                     <div className="flex gap-3 items-start">
@@ -564,7 +595,7 @@ export default function QueryPage() {
 
         {IS_STATIC ? (
           <div className="px-4 py-3 text-center text-sm text-gray-500 border-t border-gray-200 bg-gray-50">
-            읽기 전용으로 공개된 화면입니다 — 왼쪽에서 지난 대화를 선택해 결과를 볼 수 있습니다.
+            읽기 전용 공개본입니다 — 지난 대화를 보거나, 실제 실행 시 저장한 재조회 결과를 재생할 수 있습니다.
           </div>
         ) : (
           <ChatInput ref={chatInputRef} onSubmit={handleQuery} loading={loading} suggestions={suggestions} hasScreen={hasScreen} />

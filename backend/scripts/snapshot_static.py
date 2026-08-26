@@ -1,5 +1,6 @@
 """
-공개용 정적 스냅샷 생성기 — 실행 중인 백엔드의 GET 엔드포인트를 순회해
+공개용 정적 스냅샷 생성기 — 실행 중인 백엔드의 조회 엔드포인트와
+데모에서 재생할 테스트 동작을 실제로 실행해
 frontend/public/api-snapshot/ 아래 JSON 으로 떠 놓는다.
 
 읽기 전용 공개 배포(Cloudflare Pages 등)에서 백엔드 없이 화면이 동작하게 하는 용도.
@@ -21,6 +22,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 BASE = os.getenv("SNAPSHOT_BASE", "http://localhost:8008").rstrip("/")
@@ -62,14 +64,22 @@ COLLECTIONS = [
     ("/api/history", "items", "id", "/api/history/{}"),
     ("/api/admin/traces", "traces", "trace_id", "/api/admin/traces/{}"),
     ("/api/admin/virtual-views", "items", "id", "/api/admin/virtual-views/{}"),
-    ("/api/admin/eval/results", "items", "filename", "/api/admin/eval/results/{}"),
+    ("/api/admin/eval/results", "items", "file", "/api/admin/eval/results/{}"),
 ]
+
+DEMO_VECTOR_QUERY = "최근 3개월 카테고리별 매출 비중"
+DEMO_CACHE_QUERY = "최근 3개월 카테고리별 매출 비중 보여줘"
 
 masked_keys: set[str] = set()
 
 
-def fetch(path: str):
-    req = urllib.request.Request(BASE + path, headers={"Accept": "application/json"})
+def fetch(path: str, *, method: str = "GET", payload: dict | None = None):
+    body = None
+    headers = {"Accept": "application/json"}
+    if payload is not None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(BASE + path, data=body, headers=headers, method=method)
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
@@ -114,6 +124,37 @@ def items_of(payload, key: str) -> list:
     return []
 
 
+def demo_payload(payload, *, captured_at: str, action: str, input_data: dict | None = None):
+    """실행 결과에 공개본 재생 메타데이터를 덧붙인다."""
+    if not isinstance(payload, dict):
+        return payload
+    out = dict(payload)
+    out["_demo"] = {
+        "replay": True,
+        "captured_at": captured_at,
+        "action": action,
+        **({"input": input_data} if input_data is not None else {}),
+    }
+    return out
+
+
+def virtual_view_params(detail: dict) -> dict:
+    """가상 View 메타의 필수 파라미터를 데모용 기본값으로 채운다."""
+    meta = detail.get("meta") or {}
+    today = date.today()
+    ymd = today.strftime("%Y%m%d")
+    defaults = {
+        "STD_YMD": ymd,
+        "STA_YMD": today.replace(day=1).strftime("%Y%m%d"),
+        "END_YMD": ymd,
+        "EMP_ID": "",
+        "DEPT_CD": "",
+        "NAME": "",
+    }
+    keys = [*(meta.get("required_params") or []), *(meta.get("optional_filters") or [])]
+    return {key: defaults.get(key, "") for key in keys}
+
+
 def main() -> int:
     try:
         fetch("/api/health")
@@ -126,6 +167,7 @@ def main() -> int:
     total_files = 0
     total_bytes = 0
     failures: list[tuple[str, str]] = []
+    captured_at = datetime.now(timezone.utc).isoformat()
 
     targets = list(STATIC_PATHS)
 
@@ -150,6 +192,69 @@ def main() -> int:
         payload = mask(payload)
         total_bytes += write(path, payload)
         total_files += 1
+
+    # 공개본에서도 동작을 설명할 수 있는 테스트는 스냅샷 시점에 실제 실행한다.
+    # 프론트는 정적 모드에서 동일 경로를 GET으로 읽어 이 결과를 재생한다.
+    demo_actions = [
+        ("/api/admin/vector-search-test", {"query": DEMO_VECTOR_QUERY}, "vector_search"),
+        ("/api/admin/cache-search-test", {"query": DEMO_CACHE_QUERY}, "cache_search"),
+    ]
+    successful_demo_actions: set[str] = set()
+    virtual_view_test_ids: list[str] = []
+
+    try:
+        views_payload = fetch("/api/views")
+        for view in items_of(views_payload, "items"):
+            view_id = view.get("id")
+            if view_id:
+                demo_actions.append((f"/api/views/{view_id}/open", {}, "saved_view_open"))
+    except Exception as e:  # noqa: BLE001
+        failures.append(("/api/views (demo actions)", str(e)))
+
+    try:
+        virtual_views_payload = fetch("/api/admin/virtual-views")
+        for view in items_of(virtual_views_payload, "items"):
+            view_id = view.get("id")
+            if not view_id:
+                continue
+            detail = fetch(f"/api/admin/virtual-views/{view_id}")
+            params = virtual_view_params(detail)
+            demo_actions.append((
+                f"/api/admin/virtual-views/{view_id}/test-run",
+                {"params": params},
+                "virtual_view_test_run",
+            ))
+    except Exception as e:  # noqa: BLE001
+        failures.append(("/api/admin/virtual-views (demo actions)", str(e)))
+
+    for path, request_payload, action in demo_actions:
+        try:
+            payload = fetch(path, method="POST", payload=request_payload)
+            payload = mask(demo_payload(
+                payload,
+                captured_at=captured_at,
+                action=action,
+                input_data=request_payload,
+            ))
+        except Exception as e:  # noqa: BLE001
+            failures.append((f"{path} (demo action)", str(e)))
+            continue
+        total_bytes += write(path, payload)
+        total_files += 1
+        successful_demo_actions.add(action)
+        if action == "virtual_view_test_run":
+            virtual_view_test_ids.append(path.split("/")[-2])
+
+    demo_info = {
+        "captured_at": captured_at,
+        "vector_search_query": DEMO_VECTOR_QUERY,
+        "cache_search_query": DEMO_CACHE_QUERY,
+        "vector_search_available": "vector_search" in successful_demo_actions,
+        "cache_search_available": "cache_search" in successful_demo_actions,
+        "virtual_view_test_ids": virtual_view_test_ids,
+    }
+    total_bytes += write("/api/demo", demo_info)
+    total_files += 1
 
     print(f"스냅샷 {total_files}개 파일, {total_bytes / 1024:.0f} KB → {OUT_DIR}")
     print(f"마스킹된 필드: {', '.join(sorted(masked_keys)) or '없음'}")

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   listVirtualViews, getVirtualView, saveVirtualView, testRunVirtualView,
-  retrainStream, type VirtualViewMeta,
+  retrainStream, getDemoInfo, IS_STATIC, type VirtualViewMeta,
 } from '../../utils/api'
 import { Button, Panel, EmptyState, StatusText, codeInputClass } from '../../components/ui'
 
@@ -35,8 +35,12 @@ export default function VirtualViewPanel() {
   const [testParams, setTestParams] = useState('{}')
   const [testRows, setTestRows] = useState<Record<string, unknown>[] | null>(null)
   const [reindexing, setReindexing] = useState(false)
+  const [demoTestIds, setDemoTestIds] = useState<string[]>([])
 
   useEffect(() => { listVirtualViews().then(d => setItems(d.items)) }, [])
+  useEffect(() => {
+    getDemoInfo().then(info => setDemoTestIds(info?.virtual_view_test_ids || [])).catch(() => {})
+  }, [])
   useEffect(() => {
     if (!selected) return
     getVirtualView(selected).then(d => {
@@ -74,8 +78,13 @@ export default function VirtualViewPanel() {
     try {
       const p = JSON.parse(testParams)
       const r = await testRunVirtualView(selected, p)
-      setTestRows(r.rows); setStatus(`${r.row_count}건 반환`)
-    } catch (e) { setStatus('실패: ' + String(e)) }
+      setTestRows(r.rows)
+      setStatus(r._demo ? `저장된 Test Run 결과 재생 · ${r.row_count}건 반환` : `${r.row_count}건 반환`)
+    } catch (e) {
+      setStatus(IS_STATIC
+        ? '저장된 Test Run 결과가 없습니다. 백엔드를 띄운 뒤 스냅샷을 다시 생성해 주세요.'
+        : '실패: ' + String(e))
+    }
   }
   const reindex = () => {
     setReindexing(true)
@@ -126,13 +135,20 @@ export default function VirtualViewPanel() {
                 className={codeInputClass} spellCheck={false} />
               <div className="flex gap-2 mt-2">
                 <Button mutating onClick={save}>저장</Button>
-                <Button variant="secondary" mutating onClick={test}>Test Run</Button>
+                <Button variant="secondary" mutating demoReplay onClick={test}
+                  disabled={IS_STATIC && !!selected && !demoTestIds.includes(selected)}>
+                  {IS_STATIC ? '저장된 Test Run 재생' : 'Test Run'}
+                </Button>
                 <StatusText status={status} />
               </div>
             </Panel>
             <Panel title="Test Run 파라미터 (JSON)">
-              <textarea value={testParams} onChange={e => setTestParams(e.target.value)} rows={3}
+              <textarea value={testParams} onChange={e => setTestParams(e.target.value)} rows={3} readOnly={IS_STATIC}
                 className={codeInputClass} spellCheck={false} />
+              {IS_STATIC && <p className="mt-2 text-xs text-cyan-700">공개본은 스냅샷 생성 시 DB에서 실제로 실행해 저장한 결과를 재생합니다.</p>}
+              {IS_STATIC && selected && !demoTestIds.includes(selected) && (
+                <p className="mt-2 text-xs text-amber-700">이 View의 저장된 Test Run 결과가 없습니다. 스냅샷을 다시 생성해 주세요.</p>
+              )}
               {testRows && <ResultTable rows={testRows} />}
             </Panel>
           </>

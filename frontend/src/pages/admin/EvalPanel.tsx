@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   listEvalResults, getEvalResult, runEvalStream,
-  type EvalResultMeta, type EvalResultDetail, type EvalCaseResult,
+  IS_STATIC, type EvalResultMeta, type EvalResultDetail, type EvalCaseResult,
 } from '../../utils/api'
 import { Button, Panel, Badge, EmptyState } from '../../components/ui'
 
@@ -121,12 +121,17 @@ export default function EvalPanel() {
         title="골든셋 평가 실행"
         description="현재 서버 설정(모델/effort/에이전틱)으로 골든 질문셋을 실행하고 정확도/지연/비용을 기록합니다. 프롬프트·모델·검색 가중치 변경 전후로 실행해서 회귀를 확인하세요."
         actions={
-          <Button size="md" mutating onClick={handleRun} busy={running}>
-            {running ? '실행 중...' : '평가 실행'}
+          <Button size="md" mutating demoReplay onClick={handleRun} busy={running}>
+            {running ? '실행 중...' : IS_STATIC ? '저장된 평가 재생' : '평가 실행'}
           </Button>
         }
       >
         <div className="space-y-3">
+          {IS_STATIC && (
+            <p className="text-xs text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-lg px-3 py-2">
+              공개본에서는 백엔드를 호출하지 않고, 스냅샷 생성 전 실제로 실행한 최신 평가 결과를 케이스별로 재생합니다.
+            </p>
+          )}
           {runLog.length > 0 && (
             <div className="bg-gray-900 rounded-lg p-3 max-h-64 overflow-y-auto">
               {runLog.map((line, i) => (

@@ -71,7 +71,7 @@ export default function AdminLayout() {
           </div>
           {IS_STATIC && (
             <span className="ml-auto text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-              읽기 전용 — 공개 스냅샷
+              읽기 전용 · 테스트 결과 재생
             </span>
           )}
         </header>

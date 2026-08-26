@@ -24,6 +24,19 @@ cd backend && python scripts/snapshot_static.py   # 터미널 2
 (`/api/history/abc` → `api-snapshot/history/abc.json`). 이 디렉터리는 저장소에 커밋합니다 —
 Cloudflare Pages 는 백엔드에 접근할 수 없으므로 빌드 산출물에 들어 있어야 합니다.
 
+스냅샷 생성기는 읽기 응답만 복사하지 않고, 공개본에서 재생할 테스트를 실제로 한 번씩 실행해
+결과도 함께 저장합니다.
+
+| 공개본 동작 | 스냅샷 생성 시 실행하는 일 | 공개본 표시 |
+|---|---|---|
+| `내 화면` 열기 | 저장된 SQL을 DB에 재실행 | SQL 실행 → 기존 화면 바인딩 단계 + 저장된 결과 |
+| 벡터/캐시 검색 테스트 | 고정 데모 질문으로 실제 검색 | `저장된 검색 재생` 버튼 + 결과 |
+| 가상 View Test Run | View별 기본 파라미터로 DB 실행 | `저장된 Test Run 재생` 버튼 + 표 |
+| 골든셋 평가 | 이미 실행해 둔 최신 `eval_*.json` 복사 | 케이스별 진행 로그와 결과 재생 |
+
+> 골든셋 평가는 API 비용이 드므로 스냅샷 생성기가 자동 실행하지 않습니다. 관리자의 `평가 실행`이나
+> `python eval/run_eval.py` 로 실제 평가를 마친 뒤 스냅샷을 생성하세요. 결과가 없으면 공개본도 그 사실을 그대로 안내합니다.
+
 ### 마스킹
 
 파이프라인 추적에는 시스템 프롬프트 전문과 PII 매핑이 들어 있습니다. 성격이 달라 플래그가 나뉩니다.
@@ -84,6 +97,6 @@ git add frontend/public/api-snapshot && git commit -m "chore: 공개 스냅샷 �
 
 | 계층 | 동작 |
 |---|---|
-| `utils/api.ts` | GET 외 요청은 `StaticModeError`, SSE 는 시작조차 안 함 |
-| `components/ui/Button` | `mutating` 표시된 버튼은 자동 비활성 (기능 존재는 보이되 실행 불가) |
+| `utils/api.ts` | 일반 변경 요청과 LLM SSE는 `StaticModeError`; 데모 테스트만 저장된 JSON으로 우회 |
+| `components/ui/Button` | `mutating` 버트은 비활성, `demoReplay` 테스트 버튼만 저장된 결과 재생 |
 | 배포 자체 | 백엔드가 없으므로 호출할 대상이 존재하지 않음 |

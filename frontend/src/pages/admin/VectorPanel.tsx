@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   getSettings, retrainStream, clearSqlCache, vectorSearchTest, cacheSearchTest,
+  getDemoInfo, IS_STATIC, type DemoInfo,
 } from '../../utils/api'
 import { Button, Panel, EmptyState, inputClass } from '../../components/ui'
 
@@ -38,8 +39,30 @@ export default function VectorPanel() {
   const [hitThreshold, setHitThreshold] = useState<number>(0.05)
   const [searching, setSearching] = useState(false)
   const [clearingCache, setClearingCache] = useState(false)
+  const [demoInfo, setDemoInfo] = useState<DemoInfo | null>(null)
+  const [demoUnavailable, setDemoUnavailable] = useState(false)
 
   useEffect(() => { getSettings().then(setSettings) }, [])
+  useEffect(() => {
+    getDemoInfo().then(info => {
+      setDemoInfo(info)
+      if (info?.vector_search_available) setTestQuery(info.vector_search_query)
+    }).catch(() => { if (IS_STATIC) setDemoUnavailable(true) })
+  }, [])
+
+  const selectStore = (next: 'training' | 'cache') => {
+    setStoreType(next)
+    setTrainingResults(null)
+    setCacheResults(null)
+    if (demoInfo) {
+      const available = next === 'training' ? demoInfo.vector_search_available : demoInfo.cache_search_available
+      setTestQuery(available ? (next === 'training' ? demoInfo.vector_search_query : demoInfo.cache_search_query) : '')
+    }
+  }
+
+  const demoAvailable = storeType === 'training'
+    ? demoInfo?.vector_search_available
+    : demoInfo?.cache_search_available
 
   const handleRetrain = () => {
     setRetraining(true)
@@ -80,15 +103,18 @@ export default function VectorPanel() {
         setInjectLimits(res.inject_limits)
         setInjectedCounts(res.injected_counts)
         setCacheResults(null)
+        if (IS_STATIC) setStatus('실제 검색 시 저장한 데모 결과를 재생했습니다.')
       } else {
         const res = await cacheSearchTest(testQuery.trim())
         setCacheResults(res.results)
         setHitThreshold(res.hit_threshold)
         setTrainingResults(null)
+        if (IS_STATIC) setStatus('실제 검색 시 저장한 데모 결과를 재생했습니다.')
       }
     } catch {
       setTrainingResults(null)
       setCacheResults(null)
+      if (IS_STATIC) setStatus('저장된 검색 테스트 결과가 없습니다. 백엔드를 띄운 뒤 스냅샷을 다시 생성해 주세요.')
     }
     setSearching(false)
   }
@@ -131,7 +157,7 @@ export default function VectorPanel() {
         actions={
           <select
             value={storeType}
-            onChange={e => { setStoreType(e.target.value as 'training' | 'cache'); setTrainingResults(null); setCacheResults(null) }}
+            onChange={e => selectStore(e.target.value as 'training' | 'cache')}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-medium bg-white"
           >
             <option value="training">학습 데이터 (DDL/SQL/문서)</option>
@@ -145,12 +171,29 @@ export default function VectorPanel() {
             onChange={e => setTestQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleTest()}
             placeholder="검색할 질문 입력"
+            readOnly={IS_STATIC}
             className={inputClass}
           />
-          <Button size="md" mutating onClick={handleTest} busy={searching} disabled={!testQuery.trim()}>
-            {searching ? '검색 중...' : '검색'}
+          <Button size="md" mutating demoReplay onClick={handleTest} busy={searching} disabled={!testQuery.trim()}>
+            {searching ? '검색 중...' : IS_STATIC ? '저장된 검색 재생' : '검색'}
           </Button>
         </div>
+        {IS_STATIC && demoInfo && demoAvailable && (
+          <p className="mb-3 text-xs text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-lg px-3 py-2">
+            입력과 결과는 {new Date(demoInfo.captured_at).toLocaleString('ko-KR')}에 실제 검색해 저장한 데모 스냅샷입니다.
+          </p>
+        )}
+        {IS_STATIC && demoInfo && !demoAvailable && (
+          <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            이 검색 테스트는 스냅샷 생성 시 실행되지 않아 재생할 결과가 없습니다.
+          </p>
+        )}
+        {IS_STATIC && demoUnavailable && (
+          <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            저장된 검색 테스트가 없습니다. 백엔드를 띄운 뒤 스냅샷을 다시 생성하면 버튼이 활성화됩니다.
+          </p>
+        )}
+        {status && IS_STATIC && <p className="mb-3 text-xs text-emerald-600">{status}</p>}
 
         {/* Training results */}
         {storeType === 'training' && trainingResults && (() => {

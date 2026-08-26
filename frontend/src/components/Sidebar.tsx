@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { HistoryEntry, SavedView } from '../utils/api'
-import { updateHistoryTitle, toggleHistoryFavorite, deleteHistory, deleteSavedView, renameSavedView } from '../utils/api'
+import { IS_STATIC, updateHistoryTitle, toggleHistoryFavorite, deleteHistory, deleteSavedView, renameSavedView } from '../utils/api'
 
 interface Props {
   entries: HistoryEntry[]
@@ -94,23 +94,31 @@ export default function Sidebar({ entries, activeId, onSelect, onRerun, onNewCha
         {isMenu && (
           <div className="absolute right-0 top-8 z-20 bg-rail-active border border-gray-600 rounded-lg shadow-lg py-1 min-w-[140px]"
                onMouseLeave={() => setMenuId(null)}>
-            <button onClick={() => { setEditTitle(entry.title); setEditingId(entry.id); setMenuId(null) }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600">
-              제목 변경
-            </button>
-            <button onClick={() => handleFavorite(entry.id)}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600">
-              {entry.favorite ? '즐겨찾기 해제' : '즐겨찾기'}
-            </button>
+            {!IS_STATIC && (
+              <>
+                <button onClick={() => { setEditTitle(entry.title); setEditingId(entry.id); setMenuId(null) }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600">
+                  제목 변경
+                </button>
+                <button onClick={() => handleFavorite(entry.id)}
+                        className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600">
+                  {entry.favorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                </button>
+              </>
+            )}
             <button onClick={() => onRerun(entry)}
                     className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600">
-              현재 데이터로 재조회
+              {IS_STATIC ? '저장된 재조회 재생' : '현재 데이터로 재조회'}
             </button>
-            <hr className="border-gray-600 my-1" />
-            <button onClick={() => handleDelete(entry.id)}
-                    className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-gray-600">
-              삭제
-            </button>
+            {!IS_STATIC && (
+              <>
+                <hr className="border-gray-600 my-1" />
+                <button onClick={() => handleDelete(entry.id)}
+                        className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-gray-600">
+                  삭제
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -156,7 +164,7 @@ export default function Sidebar({ entries, activeId, onSelect, onRerun, onNewCha
                       <span className="truncate flex-1">{v.name}</span>
                     </div>
                   </button>
-                  <div className="absolute right-1 top-1.5 flex opacity-0 group-hover:opacity-100 transition-opacity">
+                  {!IS_STATIC && <div className="absolute right-1 top-1.5 flex opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={async (e) => {
                         e.stopPropagation()
@@ -180,7 +188,7 @@ export default function Sidebar({ entries, activeId, onSelect, onRerun, onNewCha
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
-                  </div>
+                  </div>}
                 </div>
               )
             })}

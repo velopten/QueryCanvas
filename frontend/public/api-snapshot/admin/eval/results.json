@@ -1,1 +1,1 @@
-{"items":[]}
+{"items":[{"file":"eval_20260826_233811.json","config":{"model":"claude-sonnet-5","effort":"high","agentic":true,"started_at":"2026-08-26T23:36:42.621195"},"summary":{"accuracy":0.875,"passed":7,"total":8,"avg_gen_seconds":9.8,"total_cost_usd":0.149}},{"file":"eval_20260826_233636.json","config":{"model":"claude-sonnet-5","effort":"high","agentic":true,"started_at":"2026-08-26T23:34:42.021058"},"summary":{"accuracy":1.0,"passed":1,"total":1,"avg_gen_seconds":13.9,"total_cost_usd":0.032}}]}
